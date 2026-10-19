@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><defs>
+  <linearGradient id="steelA" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+    <stop stop-color="#5A6783"/>
+    <stop offset="0.22" stop-color="#A3AFCA"/>
+    <stop offset="0.49" stop-color="#F5F8FF"/>
+    <stop offset="0.73" stop-color="#B5C2DC"/>
+    <stop offset="1" stop-color="#465773"/>
+  </linearGradient>
+  <linearGradient id="steelB" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+    <stop stop-color="#E7EEFC"/>
+    <stop offset="0.34" stop-color="#B7C4DE"/>
+    <stop offset="0.66" stop-color="#6C7D9E"/>
+    <stop offset="1" stop-color="#27374F"/>
+  </linearGradient>
+</defs>
+  <path d="M41 30 H154 Q157 30 154 33 L126 61 Q123 64 118 64 H73 Q66 64 66 71 V126 Q66 133 59 133 H38 Q30 133 30 125 V41 Q30 30 41 30 Z" fill="url(#steelA)"/>
+  <path d="M159 170 H46 Q43 170 46 167 L74 139 Q77 136 82 136 H127 Q134 136 134 129 V74 Q134 67 141 67 H162 Q170 67 170 75 V159 Q170 170 159 170 Z" fill="url(#steelB)"/>
+</svg>

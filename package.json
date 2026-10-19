@@ -1,0 +1,36 @@
+{
+  "name": "frame-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "dev:stub": "wxt --mode stub",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "build:stub": "wxt build --mode stub",
+    "prepare:types": "wxt prepare",
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "lint": "eslint .",
+    "postinstall": "wxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@fontsource/geist": "5.2.5",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@wxt-dev/module-react": "1.2.2",
+    "eslint": "9.39.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.2",
+    "vitest": "3.2.4",
+    "wxt": "0.21.4"
+  }
+}
