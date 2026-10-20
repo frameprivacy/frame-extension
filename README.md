@@ -55,13 +55,14 @@ Firefox’s add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`. Firefox does 
 
 ## What the toggles do
 
-On a fresh install the protections are on. WebRTC and fingerprinting can break sites. Fingerprinting can be turned off for the current site from the popup. `www.example.com` and `example.com` are different sites.
+On a fresh install the protections are on, including clean tracking links. WebRTC and fingerprinting can break sites. Fingerprinting can be turned off for the current site from the popup. `www.example.com` and `example.com` are different sites. Clean tracking links can be turned off per site too; the browser then also leaves subdomains of that site alone.
 
 Each browser setting shows when Frame cannot change it: another extension has it, or a policy locked it. Topics, Protected Audience, and ad measurement can only be turned **off** by an extension. Turning Frame’s toggle off clears Frame’s choice and leaves the browser default. Frame does not write `true` to those settings, because the browser rejects it.
 
 | Toggle | What it actually does |
 | --- | --- |
 | WebRTC IP leak protection | Sets `webRTCIPHandlingPolicy` to `disable_non_proxied_udp`. Hides the local IP from sites during calls. Does not hide your public IP. Some calls fail until you turn it off. |
+| Clean tracking links | Redirects page and frame navigations so a fixed list of tracking parameters is removed (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `utm_id`, `utm_name`, `fbclid`, `gclid`, `dclid`, `gbraid`, `wbraid`, `gclsrc`, `gad_source`, `msclkid`, `mc_eid`, `mc_cid`, `igshid`, `igsh`, `yclid`, `twclid`, `ttclid`, `_hsenc`, `_hsmi`, `mkt_tok`, `oly_anon_id`, `oly_enc_id`, `vero_id`, `vero_conv`, `ref_src`, `srsltid`, `epik`, `_kx`, `irclickid`, and the Matomo `pk_campaign`, `pk_source`, `pk_medium`, `pk_kwd`, `pk_content` parameters). `si` is removed only on YouTube and Spotify links. Names like `ref` and `id` are kept. Other requests are unchanged. The list is in `src/lib/trackers.ts`. |
 | Fingerprinting protection | Main-world script at `document_start`. Normalizes canvas and WebGL readback, offline audio, `hardwareConcurrency` (to 4 or 8), `deviceMemory` (to 8), and system font checks toward common values. A font the page provides itself is left alone. Blocks Local Font Access as if permission was never granted. Does not randomize a unique fingerprint. Does not change live audio, very large canvases, or text measurement, so some font guessing still works. Per site, including IPv6 and international hostnames. |
 | Block third-party cookies | `thirdPartyCookiesAllowed = false`. The site you are on can still set its own cookies. Exemptions and the Storage Access API can still apply. |
 | Global Privacy Control | `Sec-GPC: 1` via declarativeNetRequest, and `navigator.globalPrivacyControl` on the page. Sites can ignore it. Workers may not see the JavaScript flag. |
@@ -72,6 +73,7 @@ Each browser setting shows when Frame cannot change it: another extension has it
 | Do Not Track | `doNotTrackEnabled = true`. Many sites ignore it. |
 | Search suggestions | Stops the address bar from sending what you type to the search engine. |
 | Navigation error reports | Stops Chrome from sending failed addresses out for alternate error pages. |
+| Forget this site | Popup action, after a confirm. Clears that site’s cookies, local storage, IndexedDB, cache storage, and service workers on this device, plus the network cache when the browser can limit that to the site. Session storage is cleared in open tabs. You’ll be signed out. History is kept, and so is anything the site already stored on its servers. Chrome also clears cookies for the rest of that site’s registrable domain. Subdomains found from cookie domains are included; a parent host’s storage is not. |
 
 Settings are applied to the regular profile. If you allow Frame in private windows, the page scripts run there too. Some browser settings cannot be changed for private windows.
 
@@ -83,7 +85,9 @@ Settings are applied to the regular profile. If you allow Frame in private windo
 | `privacy` | Reads and sets the browser privacy settings above, and reads `levelOfControl`. |
 | `identity` | Opens frameprivacy.com with `launchWebAuthFlow` and receives the redirect. Does not read a Google account. |
 | `scripting` | Injects the fingerprint normalizer and the Global Privacy Control flag. |
-| `declarativeNetRequest` | Sets the `Sec-GPC` request header and the `Referrer-Policy` response header. |
+| `declarativeNetRequest` | Sets the `Sec-GPC` request header and the `Referrer-Policy` response header, and removes tracking parameters from navigations. |
+| `browsingData` | Clears cookies, storage, cache, and service workers for one site when you choose Forget this site. |
+| `cookies` | Reads cookie domains so that clear can include subdomains. Cookie values are not saved or sent anywhere. |
 | `http://*/*`, `https://*/*` | Those scripts and header rules have to run on the sites you visit. Frame does not read page contents into an account. |
 | `https://frameprivacy.com/*` | Calls the sign-in API. Requests omit the website’s cookies. |
 
@@ -96,7 +100,7 @@ Tokens live in extension local storage. Sites cannot read that storage. It is no
 | `npm run dev` | Chrome dev build with reload |
 | `npm run build` | Chrome MV3 bundle |
 | `npm run build:firefox` | Firefox MV3 bundle |
-| `npm test` | Unit tests for settings, header rules, fingerprint policy, and sign-in parsing |
+| `npm test` | Unit tests for settings, header rules, tracking parameters, forget-site origins, fingerprint policy, and sign-in parsing |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `wxt prepare` and `tsc --noEmit` |
 

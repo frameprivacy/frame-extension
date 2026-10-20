@@ -243,6 +243,34 @@ button:disabled {
   align-items: center;
 }
 
+.site-follow {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.host-sub {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.site-forget,
+.notice {
+  margin-top: 12px;
+}
+
+.confirm {
+  margin-top: 12px;
+}
+
+.site-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
 .site-row .switch {
   margin-top: 0;
 }

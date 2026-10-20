@@ -25,12 +25,14 @@ export function useExtensionState() {
     return () => browser.storage.onChanged.removeListener(onChanged);
   }, [refresh]);
 
-  async function send(message: ExtensionMessage) {
+  async function send(message: ExtensionMessage): Promise<boolean> {
     try {
       setState(await callExtension(message));
       setError(null);
+      return true;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'That didn’t go through. Try again.');
+      return false;
     }
   }
 

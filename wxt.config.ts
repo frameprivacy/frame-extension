@@ -29,7 +29,7 @@ export default defineConfig({
     minimum_chrome_version: '111',
     // Pins the unpacked Chromium id. Firefox rejects this field.
     key: browser === 'firefox' ? undefined : CHROMIUM_PUBLIC_KEY,
-    permissions: ['storage', 'privacy', 'identity', 'scripting', 'declarativeNetRequest'],
+    permissions: ['storage', 'privacy', 'identity', 'scripting', 'declarativeNetRequest', 'browsingData', 'cookies'],
     host_permissions: ['https://frameprivacy.com/*'],
     // http/https host access for page scripts is added from the content-script matches.
     incognito: 'spanning',

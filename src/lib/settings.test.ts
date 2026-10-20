@@ -17,7 +17,9 @@ describe('settings', () => {
     expect(settings.fingerprintProtection).toBe(true);
     expect(settings.sendGpc).toBe(true);
     expect(settings.trimReferrers).toBe(true);
+    expect(settings.stripTrackers).toBe(true);
     expect(settings.fingerprintHosts).toEqual({});
+    expect(settings.trackerHosts).toEqual({});
   });
 
   it('keeps known booleans and drops bad host exceptions', () => {

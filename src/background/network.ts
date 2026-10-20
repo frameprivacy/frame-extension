@@ -2,27 +2,32 @@ import { browser } from 'wxt/browser';
 import type { ControlState } from '../lib/control';
 import { GPC_RULE_ID, REFERRER_RULE_ID, headerRules } from '../lib/dnr';
 import type { Settings } from '../lib/settings';
+import { SHARE_LINK_RULE_ID, TRACKER_RULE_ID, trackerRules } from '../lib/trackers';
 
 const HEADER_ERROR = 'Could not update header rules.';
+const TRACKER_ERROR = 'Could not update tracking-link rules.';
 
-export async function applyHeaderRules(
-  settings: Settings,
-): Promise<{ sendGpc: ControlState; trimReferrers: ControlState }> {
-  const applied = { sendGpc: appliedState(), trimReferrers: appliedState() };
+export async function applyHeaderRules(settings: Settings): Promise<{
+  sendGpc: ControlState;
+  trimReferrers: ControlState;
+  stripTrackers: ControlState;
+}> {
+  const applied = { sendGpc: appliedState(), trimReferrers: appliedState(), stripTrackers: appliedState() };
   if (!browser.declarativeNetRequest?.updateDynamicRules) {
     const unavailable: ControlState = {
       kind: 'unavailable',
-      reason: 'This browser cannot change request headers from an extension.',
+      reason: 'This browser cannot change requests from an extension.',
     };
     return {
       sendGpc: settings.sendGpc ? unavailable : appliedState(),
       trimReferrers: settings.trimReferrers ? unavailable : appliedState(),
+      stripTrackers: settings.stripTrackers ? unavailable : appliedState(),
     };
   }
   try {
     await browser.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [GPC_RULE_ID, REFERRER_RULE_ID],
-      addRules: headerRules(settings) as Parameters<
+      removeRuleIds: [GPC_RULE_ID, REFERRER_RULE_ID, TRACKER_RULE_ID, SHARE_LINK_RULE_ID],
+      addRules: [...headerRules(settings), ...trackerRules(settings)] as Parameters<
         typeof browser.declarativeNetRequest.updateDynamicRules
       >[0]['addRules'],
     });
@@ -31,6 +36,7 @@ export async function applyHeaderRules(
     return {
       sendGpc: settings.sendGpc ? { kind: 'error', reason: HEADER_ERROR } : appliedState(),
       trimReferrers: settings.trimReferrers ? { kind: 'error', reason: HEADER_ERROR } : appliedState(),
+      stripTrackers: settings.stripTrackers ? { kind: 'error', reason: TRACKER_ERROR } : appliedState(),
     };
   }
 }
