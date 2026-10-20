@@ -1,6 +1,6 @@
 # Frame
 
-A small Manifest V3 extension for [Frame](https://frameprivacy.com). It manages privacy settings in Chromium browsers (Chrome, Brave, Edge) and, optionally, shows the signed-in Frame account. Firefox builds with the same project.
+A small Manifest V3 extension for [Frame](https://frameprivacy.com). It manages privacy settings in Chromium browsers (Chrome, Brave, Edge) and Firefox. Signing in to a Frame account is optional, and Chrome and Firefox use the same sign-in.
 
 Privacy toggles work with no account. The extension does not ask for a Frame password, and it does not make you anonymous.
 
@@ -24,7 +24,7 @@ npm run build            # .output/chrome-mv3
 npm run build:firefox    # .output/firefox-mv3
 ```
 
-`npm run dev:stub` and `npm run build:stub` sign in to a labeled preview account without calling frameprivacy.com. Use that only to look at the signed-in UI. A normal build talks to the live API in [docs/auth.md](docs/auth.md). Until that feature is configured, sign-in says it isn’t available yet and the toggles still work. Live sign-in on Firefox is coming soon. The stub build on Firefox still uses the preview account.
+`npm run dev:stub` and `npm run build:stub` sign in to a labeled preview account without calling frameprivacy.com. Use that only to look at the signed-in UI. A normal build talks to the live API in [docs/auth.md](docs/auth.md). Until that feature is configured, sign-in says it isn’t available yet and the toggles still work. Firefox uses `browser.identity.launchWebAuthFlow` with the same PKCE flow, and sends `client=firefox` so the site can allow its `moz-extension://` origin.
 
 ## Load unpacked
 
@@ -51,7 +51,7 @@ Set these on the site before sign-in can succeed. Details and redirect URIs are 
 
 The Chrome id comes from the public key in `wxt.config.ts`. The private key is not in this repo. A Chrome Web Store build that Google re-signs gets a different id; add that id too.
 
-Firefox’s add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`. Firefox does not accept a bare hostname as an add-on id, and the redirect host is SHA-1 of the add-on id. The client id in the table is that host label. Allow it the same way as the Chrome id.
+Firefox’s add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`. The Firefox manifest sets that id under `browser_specific_settings.gecko.id` and requests `https://frameprivacy.com/*`. Firefox does not accept a bare hostname as an add-on id, and the redirect host is SHA-1 of the add-on id. The client id in the table is that host label. Allow it the same way as the Chrome id. Also allow `Origin: moz-extension://` plus any install uuid, and read `client=firefox` on the connect URL and on token and revoke. Chrome does not send `client`.
 
 ## What the toggles do
 

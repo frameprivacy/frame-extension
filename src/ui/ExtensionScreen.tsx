@@ -20,7 +20,6 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
             <AccountButton
               signedIn={state.account !== null}
               signingIn={state.signingIn}
-              available={state.authAvailable}
               onSignIn={() => void send({ type: 'frame.sign-in' })}
               onSignOut={() => void send({ type: 'frame.sign-out' })}
             />
@@ -43,14 +42,9 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
           <>
             {state.account ? (
               <ScoreCard account={state.account} />
-            ) : state.authAvailable ? (
-              <p className="quiet">
-                Optional. Privacy settings work without an account. Your password stays on frameprivacy.com.
-              </p>
             ) : (
               <p className="quiet">
-                Sign-in on Firefox is coming soon. Privacy settings work without an account. Your password stays on
-                frameprivacy.com.
+                Optional. Privacy settings work without an account. Your password stays on frameprivacy.com.
               </p>
             )}
             {state.authError ? <p className="error">{state.authError}</p> : null}
@@ -143,23 +137,14 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
 function AccountButton({
   signedIn,
   signingIn,
-  available,
   onSignIn,
   onSignOut,
 }: {
   signedIn: boolean;
   signingIn: boolean;
-  available: boolean;
   onSignIn: () => void;
   onSignOut: () => void;
 }) {
-  if (!signedIn && !available) {
-    return (
-      <button type="button" className="btn" disabled>
-        Coming soon
-      </button>
-    );
-  }
   if (!signedIn) {
     return (
       <button type="button" className="btn" onClick={onSignIn} disabled={signingIn}>

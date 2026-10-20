@@ -18,7 +18,6 @@ export class FrameApiError extends Error {
 }
 
 export const SIGN_IN_UNAVAILABLE = 'Sign-in isn’t available yet.';
-export const FIREFOX_SIGN_IN_MESSAGE = 'Sign-in isn’t available in Firefox yet.';
 export const SESSION_ENDED = 'Your Frame session ended. Sign in again.';
 export const NETWORK_ERROR = 'Couldn’t reach frameprivacy.com.';
 
