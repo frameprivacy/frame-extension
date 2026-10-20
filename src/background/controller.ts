@@ -10,6 +10,7 @@ import {
   isExtensionMessage,
   type ExtensionMessage,
   type PublicAccount,
+  type SiteNotice,
   type UiState,
 } from '../lib/messages';
 import { toPublicAccount, withToken, type StoredSession } from '../lib/session';
@@ -19,11 +20,14 @@ import {
   isBooleanSettingId,
   setBooleanSetting,
   setFingerprintHost,
+  setTrackerHost,
+  clearTrackerHost,
   type Settings,
 } from '../lib/settings';
 import { applyPrivacySettings } from './browser-privacy';
 import { applyHeaderRules } from './network';
 import { applyPageScripts } from './page-scripts';
+import { clearSite } from './forget-site';
 import { clearSession, loadSession, loadSettings, saveSession, saveSettings } from './store';
 
 const client = createFrameClient();
@@ -33,6 +37,7 @@ let controls: UiState['controls'] = {};
 let authError: string | null = null;
 let signingIn = false;
 let exposureFetchedAt = 0;
+let siteNotice: SiteNotice | null = null;
 let appliedSignature = '';
 let chain: Promise<unknown> = Promise.resolve();
 
@@ -67,6 +72,14 @@ async function handle(message: ExtensionMessage): Promise<UiState> {
       return setHost(message.host, message.enabled);
     case 'frame.clear-host':
       return clearHost(message.host);
+    case 'frame.set-tracker-host':
+      return setTracker(message.host, message.enabled);
+    case 'frame.clear-tracker-host':
+      return clearTracker(message.host);
+    case 'frame.forget-site':
+      return forgetActiveSite();
+    case 'frame.reload-tab':
+      return reloadActiveTab();
     case 'frame.sign-in':
       return signIn();
     case 'frame.sign-out':
@@ -77,6 +90,7 @@ async function handle(message: ExtensionMessage): Promise<UiState> {
 }
 
 async function getState(): Promise<UiState> {
+  siteNotice = null;
   const settings = await loadSettings();
   await applyAll(settings);
   const session = await refreshedSession(await loadSession());
@@ -96,6 +110,58 @@ async function setHost(host: unknown, enabled: unknown): Promise<UiState> {
   const settings = setFingerprintHost(await loadSettings(), host, enabled);
   await saveSettings(settings);
   await applyAll(settings);
+  return uiState(settings, await loadSession());
+}
+
+async function setTracker(host: unknown, enabled: unknown): Promise<UiState> {
+  if (typeof host !== 'string' || typeof enabled !== 'boolean') return getState();
+  const settings = setTrackerHost(await loadSettings(), host, enabled);
+  await saveSettings(settings);
+  await applyAll(settings);
+  return uiState(settings, await loadSession());
+}
+
+async function clearTracker(host: unknown): Promise<UiState> {
+  if (typeof host !== 'string') return getState();
+  const settings = clearTrackerHost(await loadSettings(), host);
+  await saveSettings(settings);
+  await applyAll(settings);
+  return uiState(settings, await loadSession());
+}
+
+async function forgetActiveSite(): Promise<UiState> {
+  const settings = await loadSettings();
+  const tab = await browsingTab();
+  if (!tab.url || !tab.host) {
+    siteNotice = { tone: 'error', text: 'Open a site to clear its data.', host: tab.host, canReload: false };
+    return uiState(settings, await loadSession());
+  }
+  try {
+    siteNotice = { tone: 'ok', text: await clearSite(tab.url), host: tab.host, canReload: tab.id !== null };
+  } catch (error) {
+    siteNotice = {
+      tone: 'error',
+      text: error instanceof Error ? error.message : 'Couldn’t clear site data for this site.',
+      host: tab.host,
+      canReload: false,
+    };
+  }
+  return uiState(settings, await loadSession());
+}
+
+async function reloadActiveTab(): Promise<UiState> {
+  const settings = await loadSettings();
+  const tab = await browsingTab();
+  if (tab.id === null) {
+    siteNotice = { tone: 'error', text: 'That tab is gone. Reload it yourself.', host: tab.host, canReload: false };
+    return uiState(settings, await loadSession());
+  }
+  try {
+    await browser.tabs.reload(tab.id);
+    siteNotice = { tone: 'ok', text: 'Reloaded this tab.', host: tab.host, canReload: false };
+  } catch {
+    siteNotice = { tone: 'error', text: 'Couldn’t reload this tab.', host: tab.host, canReload: true };
+  }
   return uiState(settings, await loadSession());
 }
 
@@ -204,10 +270,15 @@ async function applyAll(settings: Settings): Promise<void> {
     sendGpc: aggregateControls([headers.sendGpc, scripts.sendGpc]),
     trimReferrers: headers.trimReferrers,
     fingerprintProtection: scripts.fingerprintProtection,
+    stripTrackers: headers.stripTrackers,
   };
-  const failed = [headers.sendGpc, headers.trimReferrers, scripts.sendGpc, scripts.fingerprintProtection].some(
-    (state) => state.kind === 'error',
-  );
+  const failed = [
+    headers.sendGpc,
+    headers.trimReferrers,
+    headers.stripTrackers,
+    scripts.sendGpc,
+    scripts.fingerprintProtection,
+  ].some((state) => state.kind === 'error');
   if (!failed) appliedSignature = signature;
 }
 
@@ -257,6 +328,7 @@ async function uiState(settings: Settings, session: StoredSession | null): Promi
     signingIn,
     authAvailable: canSignIn(import.meta.env.BROWSER, client.mode),
     tab: await currentTab(),
+    siteNotice,
   };
 }
 
@@ -265,21 +337,35 @@ function publicAccount(session: StoredSession): PublicAccount {
 }
 
 async function currentTab(): Promise<UiState['tab']> {
+  const tab = await browsingTab();
+  return { host: tab.host, restricted: tab.restricted };
+}
+
+async function browsingTab(): Promise<{ id: number | null; url: string | null; host: string | null; restricted: boolean }> {
   try {
     const [active] = await browser.tabs.query({ active: true, currentWindow: true });
-    const direct = classifyUrl(active?.url);
-    if (direct.host || !active?.url?.startsWith(browser.runtime.getURL(''))) return direct;
-    // The popup URL opened as a tab is not the page the person is browsing.
+    const direct = describeTab(active);
+    if (direct.host || !direct.url?.startsWith(browser.runtime.getURL(''))) return direct;
     const tabs = await browser.tabs.query({ currentWindow: true });
     const web = tabs
-      .filter((tab) => tab.id !== active.id)
+      .filter((tab) => tab.id !== active?.id)
       .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))
-      .map((tab) => classifyUrl(tab.url))
+      .map((tab) => describeTab(tab))
       .find((item) => item.host);
     return web ?? direct;
   } catch {
-    return { host: null, restricted: false };
+    return { id: null, url: null, host: null, restricted: false };
   }
+}
+
+function describeTab(tab: { id?: number; url?: string } | undefined): {
+  id: number | null;
+  url: string | null;
+  host: string | null;
+  restricted: boolean;
+} {
+  const classified = classifyUrl(tab?.url);
+  return { id: tab?.id ?? null, url: tab?.url ?? null, host: classified.host, restricted: classified.restricted };
 }
 
 function enqueue<T>(task: () => Promise<T>): Promise<T> {

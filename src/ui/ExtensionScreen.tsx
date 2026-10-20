@@ -1,9 +1,10 @@
+import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { TOGGLES, PERMISSIONS } from '../lib/catalog';
 import { controlDisabled, controlNote } from '../lib/control';
 import type { FrameExposure } from '../lib/frame/types';
 import type { PublicAccount } from '../lib/messages';
-import { fingerprintEnabledForHost } from '../lib/settings';
+import { fingerprintEnabledForHost, trackersEnabledForHost } from '../lib/settings';
 import { useExtensionState } from './useExtensionState';
 
 export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
@@ -64,12 +65,27 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
                     ? Object.prototype.hasOwnProperty.call(state.settings.fingerprintHosts, state.tab.host)
                     : false
                 }
+                trackersOn={state.tab.host ? trackersEnabledForHost(state.settings, state.tab.host) : false}
+                trackersCustomized={
+                  state.tab.host
+                    ? Object.prototype.hasOwnProperty.call(state.settings.trackerHosts, state.tab.host)
+                    : false
+                }
+                trackerNote={controlNote(state.controls.stripTrackers)}
+                trackerDisabled={controlDisabled(state.controls.stripTrackers)}
+                notice={state.siteNotice?.host === state.tab.host ? state.siteNotice : null}
                 note={controlNote(state.controls.fingerprintProtection)}
                 disabled={controlDisabled(state.controls.fingerprintProtection)}
                 onChange={(enabled) => {
                   if (!state.tab.host) return;
                   void send({ type: 'frame.set-host', host: state.tab.host, enabled });
                 }}
+                onTrackers={(enabled) => {
+                  if (!state.tab.host) return;
+                  void send({ type: 'frame.set-tracker-host', host: state.tab.host, enabled });
+                }}
+                onForget={() => send({ type: 'frame.forget-site' })}
+                onReload={() => send({ type: 'frame.reload-tab' })}
               />
             ) : null}
 
@@ -95,7 +111,13 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
               })}
             </div>
 
-            {options ? <Exceptions state={state} onClear={(host) => void send({ type: 'frame.clear-host', host })} /> : null}
+            {options ? (
+              <Exceptions
+                state={state}
+                onClear={(host) => void send({ type: 'frame.clear-host', host })}
+                onClearTracker={(host) => void send({ type: 'frame.clear-tracker-host', host })}
+              />
+            ) : null}
             {options ? <PermissionList /> : null}
 
             <footer className="footer">
@@ -227,18 +249,41 @@ function SiteCard({
   restricted,
   enabled,
   customized,
+  trackersOn,
+  trackersCustomized,
+  trackerNote,
+  trackerDisabled,
+  notice,
   note,
   disabled,
   onChange,
+  onTrackers,
+  onForget,
+  onReload,
 }: {
   host: string | null;
   restricted: boolean;
   enabled: boolean;
   customized: boolean;
+  trackersOn: boolean;
+  trackersCustomized: boolean;
+  trackerNote: string | null;
+  trackerDisabled: boolean;
+  notice: { tone: 'ok' | 'error'; text: string; canReload: boolean } | null;
   note: string | null;
   disabled: boolean;
   onChange: (enabled: boolean) => void;
+  onTrackers: (enabled: boolean) => void;
+  onForget: () => Promise<boolean>;
+  onReload: () => Promise<boolean>;
 }) {
+  const [confirming, setConfirming] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  useEffect(() => {
+    setConfirming(false);
+    setClearing(false);
+  }, [host]);
+
   return (
     <>
       <p className="label">This site</p>
@@ -254,22 +299,79 @@ function SiteCard({
             <p className="hint">Open a page to set fingerprinting for that site.</p>
           </>
         ) : (
-          <div className="site-row">
-            <div>
-              <h2 className="host">{host}</h2>
-              <p className="hint">
-                {customized
-                  ? 'Fingerprinting is saved for this site only.'
-                  : 'Fingerprinting follows your default for every site.'}
-              </p>
+          <>
+            <div className="site-row">
+              <div>
+                <h2 className="host">{host}</h2>
+                <p className="hint">
+                  {customized
+                    ? 'Fingerprinting is saved for this site only.'
+                    : 'Fingerprinting follows your default for every site.'}
+                </p>
+              </div>
+              <Switch
+                label={`Fingerprinting protection for ${host}`}
+                checked={enabled}
+                disabled={disabled}
+                onChange={onChange}
+              />
             </div>
-            <Switch
-              label={`Fingerprinting protection for ${host}`}
-              checked={enabled}
-              disabled={disabled}
-              onChange={onChange}
-            />
-          </div>
+            <div className="site-row site-follow">
+              <div>
+                <h3 className="host-sub">Clean tracking links</h3>
+                <p className="hint">
+                  {trackersCustomized
+                    ? 'Saved for this site and its subdomains.'
+                    : 'Follows your default for this site and its subdomains.'}
+                </p>
+              </div>
+              <Switch
+                label={`Clean tracking links for ${host}`}
+                checked={trackersOn}
+                disabled={trackerDisabled}
+                onChange={onTrackers}
+              />
+            </div>
+            {trackerNote ? <p className="note hint">{trackerNote}</p> : null}
+            {confirming ? (
+              <div className="confirm">
+                <p className="hint">
+                  Clear cookies and site data for {host} on this device? You’ll be signed out of that site. This does
+                  not erase history, or data the site already kept on its servers. Storage on subdomains we can see is
+                  included. Chrome also clears cookies for the wider site. Open tabs drop session storage.
+                </p>
+                <div className="site-actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={clearing}
+                    onClick={() => {
+                      setClearing(true);
+                      void onForget().then((ok) => {
+                        if (ok) setConfirming(false);
+                        setClearing(false);
+                      });
+                    }}
+                  >
+                    {clearing ? 'Clearing…' : 'Clear data'}
+                  </button>
+                  <button type="button" className="text-link" onClick={() => setConfirming(false)} disabled={clearing}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="text-link site-forget" onClick={() => setConfirming(true)}>
+                Forget this site
+              </button>
+            )}
+            {notice ? <p className={notice.tone === 'error' ? 'error notice' : 'hint notice'}>{notice.text}</p> : null}
+            {notice?.canReload ? (
+              <button type="button" className="text-link" onClick={() => void onReload()}>
+                Reload tab
+              </button>
+            ) : null}
+          </>
         )}
         {note ? <p className="note hint">{note}</p> : null}
       </section>
@@ -280,17 +382,20 @@ function SiteCard({
 function Exceptions({
   state,
   onClear,
+  onClearTracker,
 }: {
   state: NonNullable<ReturnType<typeof useExtensionState>['state']>;
   onClear: (host: string) => void;
+  onClearTracker: (host: string) => void;
 }) {
   const hosts = Object.entries(state.settings.fingerprintHosts).sort(([a], [b]) => a.localeCompare(b));
+  const trackers = Object.entries(state.settings.trackerHosts).sort(([a], [b]) => a.localeCompare(b));
   return (
     <>
       <p className="label">Site exceptions</p>
       {hosts.length === 0 ? (
         <p className="empty panel">
-          No site exceptions. Open Frame on a page that breaks, and turn fingerprinting off for that site only.
+          No fingerprint exceptions. Open Frame on a page that breaks, and turn fingerprinting off for that site only.
           Subdomains are separate: www.example.com is not example.com.
         </p>
       ) : (
@@ -298,8 +403,27 @@ function Exceptions({
           {hosts.map(([host, enabled]) => (
             <li key={host}>
               <span>{host}</span>
-              <span className="pill">{enabled ? 'On' : 'Off'}</span>
+              <span className="pill">{enabled ? 'Fingerprinting on' : 'Fingerprinting off'}</span>
               <button type="button" className="text-link" onClick={() => onClear(host)}>
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="label">Tracking link exceptions</p>
+      {trackers.length === 0 ? (
+        <p className="empty panel">
+          No tracking-link exceptions. Turn clean tracking links off for a site from the popup when a link breaks. That
+          choice also covers its subdomains.
+        </p>
+      ) : (
+        <ul className="hosts panel">
+          {trackers.map(([host, enabled]) => (
+            <li key={host}>
+              <span>{host}</span>
+              <span className="pill">{enabled ? 'Cleaning on' : 'Cleaning off'}</span>
+              <button type="button" className="text-link" onClick={() => onClearTracker(host)}>
                 Remove
               </button>
             </li>

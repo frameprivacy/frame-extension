@@ -10,6 +10,7 @@ export const BOOLEAN_SETTING_IDS = [
   'sendDoNotTrack',
   'disableSearchSuggestions',
   'disableAlternateErrorPages',
+  'stripTrackers',
 ] as const;
 
 export type BooleanSettingId = (typeof BOOLEAN_SETTING_IDS)[number];
@@ -17,6 +18,8 @@ export type BooleanSettingId = (typeof BOOLEAN_SETTING_IDS)[number];
 export interface Settings {
   version: 1;
   fingerprintHosts: Record<string, boolean>;
+  /** Exact hosts that differ from `stripTrackers`. The network rule also covers subdomains. */
+  trackerHosts: Record<string, boolean>;
   protectWebRtc: boolean;
   blockThirdPartyCookies: boolean;
   sendGpc: boolean;
@@ -28,12 +31,14 @@ export interface Settings {
   sendDoNotTrack: boolean;
   disableSearchSuggestions: boolean;
   disableAlternateErrorPages: boolean;
+  stripTrackers: boolean;
 }
 
 export function defaultSettings(): Settings {
   return {
     version: 1,
     fingerprintHosts: {},
+    trackerHosts: {},
     protectWebRtc: true,
     blockThirdPartyCookies: true,
     sendGpc: true,
@@ -45,6 +50,7 @@ export function defaultSettings(): Settings {
     sendDoNotTrack: true,
     disableSearchSuggestions: true,
     disableAlternateErrorPages: true,
+    stripTrackers: true,
   };
 }
 
@@ -59,15 +65,21 @@ export function parseSettings(value: unknown): Settings {
   for (const id of BOOLEAN_SETTING_IDS) {
     if (typeof raw[id] === 'boolean') settings[id] = raw[id];
   }
-  if (raw.fingerprintHosts && typeof raw.fingerprintHosts === 'object') {
-    const hosts: Record<string, boolean> = {};
-    for (const [host, enabled] of Object.entries(raw.fingerprintHosts as Record<string, unknown>)) {
-      const normalized = normalizeHost(host);
-      if (normalized && typeof enabled === 'boolean') hosts[normalized] = enabled;
-    }
-    settings.fingerprintHosts = hosts;
+  settings.fingerprintHosts = hostMap(raw.fingerprintHosts);
+  if (raw.trackerHosts && typeof raw.trackerHosts === 'object') {
+    settings.trackerHosts = hostMap(raw.trackerHosts);
   }
   return settings;
+}
+
+function hostMap(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== 'object') return {};
+  const hosts: Record<string, boolean> = {};
+  for (const [host, enabled] of Object.entries(value as Record<string, unknown>)) {
+    const normalized = normalizeHost(host);
+    if (normalized && typeof enabled === 'boolean') hosts[normalized] = enabled;
+  }
+  return hosts;
 }
 
 export function setBooleanSetting(
@@ -117,6 +129,32 @@ export function setFingerprintHost(settings: Settings, host: string, enabled: bo
   if (enabled === settings.fingerprintProtection) delete fingerprintHosts[normalized];
   else fingerprintHosts[normalized] = enabled;
   return { ...settings, fingerprintHosts };
+}
+
+export function trackersEnabledForHost(settings: Settings, host: string): boolean {
+  const normalized = normalizeHost(host);
+  if (!normalized) return settings.stripTrackers;
+  if (Object.prototype.hasOwnProperty.call(settings.trackerHosts, normalized)) {
+    return settings.trackerHosts[normalized]!;
+  }
+  return settings.stripTrackers;
+}
+
+export function setTrackerHost(settings: Settings, host: string, enabled: boolean): Settings {
+  const normalized = normalizeHost(host);
+  if (!normalized) return settings;
+  const trackerHosts = { ...settings.trackerHosts };
+  if (enabled === settings.stripTrackers) delete trackerHosts[normalized];
+  else trackerHosts[normalized] = enabled;
+  return { ...settings, trackerHosts };
+}
+
+export function clearTrackerHost(settings: Settings, host: string): Settings {
+  const normalized = normalizeHost(host);
+  if (!normalized || !Object.prototype.hasOwnProperty.call(settings.trackerHosts, normalized)) return settings;
+  const trackerHosts = { ...settings.trackerHosts };
+  delete trackerHosts[normalized];
+  return { ...settings, trackerHosts };
 }
 
 export function clearFingerprintHost(settings: Settings, host: string): Settings {

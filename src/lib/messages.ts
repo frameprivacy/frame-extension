@@ -19,6 +19,14 @@ export interface UiState {
   /** False when this browser cannot complete live sign-in. */
   authAvailable: boolean;
   tab: { host: string | null; restricted: boolean };
+  siteNotice: SiteNotice | null;
+}
+
+export interface SiteNotice {
+  tone: 'ok' | 'error';
+  text: string;
+  host: string | null;
+  canReload: boolean;
 }
 
 export type ExtensionMessage =
@@ -26,6 +34,10 @@ export type ExtensionMessage =
   | { type: 'frame.set-setting'; id: BooleanSettingId; value: boolean }
   | { type: 'frame.set-host'; host: string; enabled: boolean }
   | { type: 'frame.clear-host'; host: string }
+  | { type: 'frame.set-tracker-host'; host: string; enabled: boolean }
+  | { type: 'frame.clear-tracker-host'; host: string }
+  | { type: 'frame.forget-site' }
+  | { type: 'frame.reload-tab' }
   | { type: 'frame.sign-in' }
   | { type: 'frame.sign-out' };
 

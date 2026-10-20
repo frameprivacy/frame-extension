@@ -17,6 +17,14 @@ export const TOGGLES: ToggleCopy[] = [
       'Sets the browser’s WebRTC policy to “disable non-proxied UDP”. Turn this off if a call will not connect. It does not hide the IP address your provider assigns you.',
   },
   {
+    id: 'stripTrackers',
+    title: 'Clean tracking links',
+    summary:
+      'Removes common tracking parameters, such as utm_source and fbclid, from links you open. The page still loads.',
+    detail:
+      'Strips a fixed list of tracking parameters from pages and frames you navigate to. It does not change other requests, and it leaves ordinary parameters such as ref and id alone. Turn it off for a site when a link breaks. The browser applies that choice to the site’s subdomains as well. YouTube and Spotify share links also lose the si parameter.',
+  },
+  {
     id: 'fingerprintProtection',
     title: 'Fingerprinting protection',
     summary:
@@ -93,7 +101,7 @@ export const TOGGLES: ToggleCopy[] = [
 export const PERMISSIONS: { name: string; why: string }[] = [
   {
     name: 'storage',
-    why: 'Saves your toggles, per-site fingerprint exceptions, and the Frame session on this device.',
+    why: 'Saves your toggles, per-site exceptions, and the Frame session on this device.',
   },
   {
     name: 'privacy',
@@ -109,7 +117,15 @@ export const PERMISSIONS: { name: string; why: string }[] = [
   },
   {
     name: 'declarativeNetRequest',
-    why: 'Adds the Sec-GPC request header and a Referrer-Policy response header.',
+    why: 'Adds the Sec-GPC request header, a Referrer-Policy response header, and removes tracking parameters from navigations.',
+  },
+  {
+    name: 'browsingData',
+    why: 'Clears cookies, storage, cache, and service workers for a site when you choose Forget this site. It is not used for anything else.',
+  },
+  {
+    name: 'cookies',
+    why: 'Reads cookie domains so Forget this site can include subdomains. Cookie values are not saved or sent to an account.',
   },
   {
     name: 'Host access, http and https',
