@@ -32,8 +32,11 @@ Firefox will not load an add-on whose id is a bare hostname, and it will not put
 | `code_challenge_method` | `S256` |
 | `state` | 16–128 unreserved characters |
 | `scope` | `account exposure` |
+| `client` | `firefox`, Firefox builds only |
 
 `scope` may be omitted. Omitted means both `account` and `exposure`. The extension sends both.
+
+`client` is omitted on Chrome. Firefox adds `client=firefox` so the site can tell a Firefox add-on from a Chrome extension before it looks at `Origin`.
 
 `redirect_uri` is `https`, with no port, query, or hash. The path is `/` or one segment.
 
@@ -52,11 +55,14 @@ Authorization code:
 {
   "grant_type": "authorization_code",
   "code": "frc_...",
-  "redirect_uri": "https://<id>.chromiumapp.org/",
+  "redirect_uri": "https://<id>.extensions.allizom.org/",
   "client_id": "<id>",
-  "code_verifier": "the-original-verifier"
+  "code_verifier": "the-original-verifier",
+  "client": "firefox"
 }
 ```
+
+That body is the Firefox exchange. Chrome uses the `chromiumapp.org` redirect and omits `client`. The same `client` field is added to Firefox refresh and revoke.
 
 Refresh:
 
@@ -64,9 +70,12 @@ Refresh:
 {
   "grant_type": "refresh_token",
   "refresh_token": "frx_...",
-  "client_id": "<id>"
+  "client_id": "<id>",
+  "client": "firefox"
 }
 ```
+
+`client` is Firefox only. Chrome’s refresh body has no `client` field.
 
 Success:
 
@@ -86,7 +95,7 @@ Both tokens must start with `frx_`. The extension refuses anything else, so a we
 
 ## Revoke
 
-`POST /api/extension/revoke` with `token` and `client_id`. The site also accepts `Authorization: Bearer`. The extension sends the JSON body. Local sign-out still deletes the session if revoke fails.
+`POST /api/extension/revoke` with `token` and `client_id`. Firefox also sends `client` set to `firefox`. The site also accepts `Authorization: Bearer`. The extension sends the JSON body. Local sign-out still deletes the session if revoke fails.
 
 ## Account
 
@@ -133,9 +142,18 @@ The body is `error` and `error_description`.
 
 The extension has a host permission for `https://frameprivacy.com/*`. Every Frame request sets `credentials: 'omit'` and `cache: 'no-store'`. The website cookie is not sent.
 
-Chrome extension fetches send `Origin: chrome-extension://<chrome id>`. The site allows that origin.
+Chrome extension fetches send `Origin: chrome-extension://<chrome id>`. The site allows that origin. Chrome does not send a `client` field.
 
-Firefox sends `Origin: moz-extension://<per-install uuid>`. The site rejects that. A `no-cors` request cannot be read, and Firefox will not let the extension remove `Origin` on a CORS request. Live Firefox sign-in is off. The popup says sign-in on Firefox is coming soon. A stub build on Firefox still signs in to the preview account, because that path never calls the site.
+Firefox sends `Origin: moz-extension://<per-install uuid>` on its API fetches. That uuid is different on every install, so it cannot be registered in advance. Firefox cannot omit `Origin` on a CORS request. The site should allow any `moz-extension://` origin for the Firefox client on `/api/extension/token`, `/revoke`, `/account`, and `/exposure`.
+
+Firefox builds identify themselves with `client=firefox`:
+
+- query parameter on `GET /connect`
+- JSON field on `POST /api/extension/token` (both grant types) and `POST /api/extension/revoke`
+
+Account and exposure stay Bearer-only. Match those by the token, and still allow the `moz-extension://` origin. The redirect URI and `client_id` stay `https://86d25b817a984dadbf12ae6ae90c87df43543c41.extensions.allizom.org/` and `86d25b817a984dadbf12ae6ae90c87df43543c41`. The manifest add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`.
+
+A stub build, including on Firefox, still signs in to the preview account and does not call the site.
 
 Requests are made from the background script. The popup only receives the account and exposure summary, not the tokens.
 

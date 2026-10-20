@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canSignIn, clientIdFromRedirect, codeChallenge, createVerifier, expiresAtFromSeconds, isTokenExpired, parseAuthRedirect, randomState } from './auth';
+import { clientIdFromRedirect, codeChallenge, createVerifier, expiresAtFromSeconds, isTokenExpired, parseAuthRedirect, randomState, signInClient } from './auth';
 import { CHROME_EXTENSION_ID, FIREFOX_ADDON_ID, FIREFOX_CLIENT_ID } from './extension-ids';
 
 describe('sign-in helpers', () => {
@@ -38,10 +38,10 @@ describe('sign-in helpers', () => {
     expect(await sha1('identity@mozilla.org')).toBe('35b64b676900f491c00e7f618d43f7040e88422e');
   });
 
-  it('keeps live Firefox sign-in off and leaves the stub on', () => {
-    expect(canSignIn('firefox', 'live')).toBe(false);
-    expect(canSignIn('firefox', 'stub')).toBe(true);
-    expect(canSignIn('chrome', 'live')).toBe(true);
+  it('sends a firefox client hint only from Firefox', () => {
+    expect(signInClient('firefox')).toBe('firefox');
+    expect(signInClient('chrome')).toBeNull();
+    expect(signInClient('')).toBeNull();
   });
 
   it('treats a token as expired inside the skew window', () => {

@@ -1,8 +1,8 @@
 import { browser } from 'wxt/browser';
-import { canSignIn, clientIdFromRedirect, codeChallenge, createVerifier, isTokenExpired, parseAuthRedirect, randomState } from '../lib/auth';
+import { clientIdFromRedirect, codeChallenge, createVerifier, isTokenExpired, parseAuthRedirect, randomState, signInClient } from '../lib/auth';
 import { aggregateControls } from '../lib/control';
 import { createFrameClient } from '../lib/frame/create-client';
-import { endsSession, FIREFOX_SIGN_IN_MESSAGE, FrameApiError, SESSION_ENDED } from '../lib/frame/errors';
+import { endsSession, FrameApiError, SESSION_ENDED } from '../lib/frame/errors';
 import { buildAuthorizeUrl } from '../lib/frame/parse';
 import { createPreviewSession } from '../lib/frame/stub';
 import type { FrameExposure } from '../lib/frame/types';
@@ -175,10 +175,6 @@ async function clearHost(host: unknown): Promise<UiState> {
 
 async function signIn(): Promise<UiState> {
   if (signingIn) return uiState(await loadSettings(), await loadSession());
-  if (!canSignIn(import.meta.env.BROWSER, client.mode)) {
-    authError = FIREFOX_SIGN_IN_MESSAGE;
-    return uiState(await loadSettings(), await loadSession());
-  }
   signingIn = true;
   authError = null;
   try {
@@ -204,7 +200,13 @@ async function liveSignIn(): Promise<string | null> {
   let returned: string | undefined;
   try {
     returned = await browser.identity.launchWebAuthFlow({
-      url: buildAuthorizeUrl({ redirectUri, state, codeChallenge: challenge, clientId }),
+      url: buildAuthorizeUrl({
+        redirectUri,
+        state,
+        codeChallenge: challenge,
+        clientId,
+        client: signInClient(import.meta.env.BROWSER),
+      }),
       interactive: true,
     });
   } catch {
@@ -326,7 +328,6 @@ async function uiState(settings: Settings, session: StoredSession | null): Promi
     account: session ? publicAccount(session) : null,
     authError,
     signingIn,
-    authAvailable: canSignIn(import.meta.env.BROWSER, client.mode),
     tab: await currentTab(),
     siteNotice,
   };

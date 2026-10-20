@@ -67,10 +67,13 @@ export function clientIdFromRedirect(redirectUri: string): string | null {
   return host.match(CHROME_HOST)?.[1] ?? host.match(FIREFOX_HOST)?.[1] ?? null;
 }
 
-/** Live Firefox cannot omit Origin, and the site rejects moz-extension origins. */
-export function canSignIn(browserName: string, mode: 'live' | 'stub'): boolean {
-  if (mode === 'stub') return true;
-  return browserName !== 'firefox';
+/**
+ * Firefox fetches send Origin: moz-extension://<per-install uuid>.
+ * The site cannot allowlist that uuid. Firefox builds send this hint
+ * on the authorize URL and on token and revoke bodies. Chrome omits it.
+ */
+export function signInClient(browserName: string): 'firefox' | null {
+  return browserName === 'firefox' ? 'firefox' : null;
 }
 
 export type RedirectResult = { ok: true; code: string } | { ok: false; message: string };

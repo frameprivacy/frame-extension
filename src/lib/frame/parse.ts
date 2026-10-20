@@ -22,6 +22,7 @@ export function buildAuthorizeUrl(input: AuthorizeInput): string {
   url.searchParams.set('state', input.state);
   const scope = input.scope ?? FRAME_SCOPE;
   if (scope) url.searchParams.set('scope', scope);
+  if (input.client === 'firefox') url.searchParams.set('client', 'firefox');
   return url.toString();
 }
 

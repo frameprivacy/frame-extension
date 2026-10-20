@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHROME_EXTENSION_ID } from '../extension-ids';
+import { CHROME_EXTENSION_ID, FIREFOX_CLIENT_ID } from '../extension-ids';
 import { parseStoredSession, toPublicAccount, withToken } from '../session';
 import { endsSession, FrameApiError, messageForApiError, SIGN_IN_UNAVAILABLE } from './errors';
 import { FRAME_ORIGIN, buildAuthorizeUrl, parseAccount, parseExposure, parseTokenResponse, readJson } from './parse';
@@ -26,6 +26,24 @@ describe('Frame API parsing', () => {
     expect(url.searchParams.get('scope')).toBe('account exposure');
     expect(url.searchParams.get('client_id')).toBe(CHROME_EXTENSION_ID);
     expect(url.searchParams.get('redirect_uri')).toBe(CHROME_REDIRECT);
+    expect(url.searchParams.has('client')).toBe(false);
+  });
+
+  it('adds client=firefox on the Firefox authorize URL only', () => {
+    const redirect = `https://${FIREFOX_CLIENT_ID}.extensions.allizom.org/`;
+    const url = new URL(
+      buildAuthorizeUrl({
+        redirectUri: redirect,
+        state: 'state-value-ok-1',
+        codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+        clientId: FIREFOX_CLIENT_ID,
+        client: 'firefox',
+      }),
+    );
+    expect(url.searchParams.get('client')).toBe('firefox');
+    expect(url.searchParams.get('client_id')).toBe(FIREFOX_CLIENT_ID);
+    expect(url.searchParams.get('redirect_uri')).toBe(redirect);
+    expect(url.searchParams.get('response_type')).toBe('code');
   });
 
   it('reads a 15-minute token, account, and exposure', () => {

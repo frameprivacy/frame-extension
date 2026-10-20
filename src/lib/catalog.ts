@@ -109,7 +109,7 @@ export const PERMISSIONS: { name: string; why: string }[] = [
   },
   {
     name: 'identity',
-    why: 'Opens frameprivacy.com to sign in and receives the redirect. Frame never asks for your password here. Your Google account is not read.',
+    why: 'Opens frameprivacy.com to sign in and receives the redirect, on Chrome and Firefox. Frame never asks for your password here. Your browser account is not read.',
   },
   {
     name: 'scripting',

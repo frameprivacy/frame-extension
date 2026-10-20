@@ -17,13 +17,17 @@ import type { ExchangeInput, FrameAccount, FrameClient, FrameExposure, TokenSet 
  * Calls run from the background script, with credentials omitted so the
  * frameprivacy.com session cookie is never sent.
  *
- * Chrome’s Origin is chrome-extension://<id>, which the site allows.
- * Firefox’s Origin is moz-extension://<per-install uuid>. The site rejects
- * that, and Firefox will not let an extension strip Origin on a CORS request.
- * Live Firefox sign-in stays off. See canSignIn().
+ * Chrome’s Origin is chrome-extension://<id>.
+ * Firefox’s Origin is moz-extension://<per-install uuid>. Firefox builds
+ * also send client=firefox so the site can allow that origin.
  */
 export class LiveFrameClient implements FrameClient {
   readonly mode = 'live' as const;
+  private readonly browserName: string;
+
+  constructor(browserName: string = import.meta.env.BROWSER) {
+    this.browserName = browserName;
+  }
 
   buildAuthorizeUrl = buildAuthorizeUrl;
 
@@ -46,7 +50,7 @@ export class LiveFrameClient implements FrameClient {
   }
 
   async revoke(token: string, clientId: string): Promise<void> {
-    await this.post(REVOKE_PATH, { token, client_id: clientId });
+    await this.post(REVOKE_PATH, this.withClient({ token, client_id: clientId }));
   }
 
   async getAccount(accessToken: string): Promise<FrameAccount> {
@@ -59,7 +63,13 @@ export class LiveFrameClient implements FrameClient {
 
   private async token(body: Record<string, string>): Promise<TokenSet> {
     const clientId = body.client_id ?? '';
-    return parseTokenResponse(await this.post(TOKEN_PATH, body), clientId);
+    return parseTokenResponse(await this.post(TOKEN_PATH, this.withClient(body)), clientId);
+  }
+
+  /** Firefox only. Chrome bodies stay exactly as the live contract. */
+  private withClient(body: Record<string, string>): Record<string, string> {
+    if (this.browserName !== 'firefox') return body;
+    return { ...body, client: 'firefox' };
   }
 
   private post(path: string, body: Record<string, string>): Promise<unknown> {

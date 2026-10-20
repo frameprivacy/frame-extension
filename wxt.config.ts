@@ -24,7 +24,7 @@ export default defineConfig({
     name: 'Frame',
     short_name: 'Frame',
     description:
-      'Privacy controls for this browser, and an optional link to your Frame account. Does not make you anonymous.',
+      'Privacy controls for this browser, and an optional Frame account on Chrome and Firefox. Does not make you anonymous.',
     homepage_url: 'https://frameprivacy.com',
     minimum_chrome_version: '111',
     // Pins the unpacked Chromium id. Firefox rejects this field.

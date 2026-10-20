@@ -16,8 +16,6 @@ export interface UiState {
   account: PublicAccount | null;
   authError: string | null;
   signingIn: boolean;
-  /** False when this browser cannot complete live sign-in. */
-  authAvailable: boolean;
   tab: { host: string | null; restricted: boolean };
   siteNotice: SiteNotice | null;
 }
