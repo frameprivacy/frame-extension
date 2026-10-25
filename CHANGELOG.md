@@ -2,6 +2,24 @@
 
 All notable changes to the Frame extension. Versions match `package.json` and the manifest.
 
+## 0.2.1
+
+Bug fixes, found by loading the 0.2.0 build in Firefox and Chrome and checking what actually happened.
+
+- **Firefox: Global Privacy Control header and referrer trimming now reach page loads.** The clean-links rule matched every navigation, and in Firefox a matching redirect rule stops header rules for that request, even when it changes nothing. So `Sec-GPC` was never sent on pages and frames, and the `Referrer-Policy` was never set. Each clean-links rule now matches only a link that carries its tracker parameter (case-sensitive). Chrome was not affected.
+- **Firefox: Forget this site works.** It always failed with a browser error, because Firefox has no `cacheStorage` data type and no `origins` filter. It now clears cookies, local storage, IndexedDB, service workers and the network cache by hostname, and clears cache storage and session storage in the site's open tabs (on Chrome too).
+- **Sign-in no longer freezes Frame.** While the sign-in window was open, the popup and options page waited on it and showed nothing until it closed. Now they keep working and show *Waiting…* on the button.
+- **Website access.** If website access for Frame is turned off (Firefox allows this on the add-on's page), the popup and options page say which protections stopped and offer *Allow website access*, instead of showing them as working. Frame re-applies its rules when access changes.
+- A sign-in or refresh error that cleared up on its own no longer stays on screen until the next sign-in.
+- Two quick presses on a switch now toggle it twice, instead of sending the same change twice.
+- Forget this site: keyboard focus moves to *Clear data* and back, and Escape cancels. The result is announced to screen readers.
+- If Frame doesn't load, there is a *Try again* button.
+- A long name or email in the account card shows in full on hover.
+- The Privacy Score ring moves from the score on screen when a new one arrives, instead of counting up from zero again.
+- Only Frame's own popup and options page can send it commands.
+
+No new permissions.
+
 ## 0.2.0
 
 - Popup and options: a **Privacy Score ring** in the same style as the Frame dashboard (steel gradient arc, count-up that respects reduced motion) with the score band (Good, Fair, Needs work, At risk) and a bar for each area Frame has checked. The score always comes from the Frame API. Signed out, or before anything has been checked, the ring stays empty and says so.

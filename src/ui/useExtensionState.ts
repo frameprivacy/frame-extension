@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import type { ExtensionMessage, UiState } from '../lib/messages';
+import { optimisticState } from '../lib/optimistic';
 import { callExtension } from './api';
 
 export function useExtensionState() {
@@ -26,15 +27,18 @@ export function useExtensionState() {
   }, [refresh]);
 
   async function send(message: ExtensionMessage): Promise<boolean> {
+    setState((current) => optimisticState(current, message));
     try {
       setState(await callExtension(message));
       setError(null);
       return true;
     } catch (error) {
+      // Put the switches back to what the background really has.
+      void refresh();
       setError(error instanceof Error ? error.message : 'That didn’t go through. Try again.');
       return false;
     }
   }
 
-  return { state, error, send };
+  return { state, error, send, refresh };
 }

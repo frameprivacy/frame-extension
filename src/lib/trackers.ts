@@ -1,8 +1,11 @@
 import type { Settings } from './settings';
 import { normalizeHost } from './settings';
 
-export const TRACKER_RULE_ID = 3;
-export const SHARE_LINK_RULE_ID = 4;
+/** Rule ids 3 and 4 were the single tracker and share-link rules up to 0.2.0. They are still removed on update. */
+const LEGACY_RULE_IDS = [3, 4];
+/** One rule per parameter: tracker rules use ids from 100, share-link rules from 200. */
+export const TRACKER_RULE_ID_BASE = 100;
+export const SHARE_LINK_RULE_ID_BASE = 200;
 
 /**
  * Exact query keys removed from navigations. No wildcards: declarativeNetRequest
@@ -72,27 +75,47 @@ export interface TrackerRule {
     };
   };
   condition: {
-    urlFilter?: string;
+    urlFilter: string;
+    isUrlFilterCaseSensitive: true;
     requestDomains?: string[];
     excludedRequestDomains?: string[];
     resourceTypes: Array<'main_frame' | 'sub_frame'>;
   };
 }
 
+/**
+ * Each rule matches only a URL that carries its parameter (`^name^`, where `^` is a separator such as
+ * `?`, `&`, `=` or the end). A redirect rule that matches a request outranks modifyHeaders rules for
+ * it, even when the redirect changes nothing. Up to 0.2.0 one rule matched every navigation, so the
+ * Sec-GPC header and the referrer policy were never applied to page loads.
+ * Every rule removes the whole list, so one redirect cleans every tracker in the link.
+ */
 export function trackerRules(settings: Settings): TrackerRule[] {
   const excluded = domainsWhere(settings, false);
   const included = domainsWhere(settings, true);
   if (settings.stripTrackers) {
-    return [
-      rule(TRACKER_RULE_ID, 1, [...TRACKER_PARAMS], { excludedRequestDomains: excluded }),
-      shareRule(excluded, null),
-    ].filter((item): item is TrackerRule => item !== null);
+    return [...trackerSet({ excludedRequestDomains: excluded }), ...shareRules(excluded, null)];
   }
   if (included.length === 0) return [];
   return [
-    rule(TRACKER_RULE_ID, 1, [...TRACKER_PARAMS], { requestDomains: included }),
-    shareRule(excluded, included.filter(isShareDomain)),
-  ].filter((item): item is TrackerRule => item !== null);
+    ...trackerSet({ requestDomains: included }),
+    ...shareRules(excluded, included.filter(isShareDomain)),
+  ];
+}
+
+/** Every id this module may use, for removing old rules before adding new ones. */
+export function trackerRuleIds(): number[] {
+  const share = [...TRACKER_PARAMS, ...SHARE_LINK_PARAMS];
+  return [
+    ...LEGACY_RULE_IDS,
+    ...TRACKER_PARAMS.map((_, index) => TRACKER_RULE_ID_BASE + index),
+    ...share.map((_, index) => SHARE_LINK_RULE_ID_BASE + index),
+  ];
+}
+
+function trackerSet(scope: { requestDomains?: string[]; excludedRequestDomains?: string[] }): TrackerRule[] {
+  const removeParams = [...TRACKER_PARAMS];
+  return TRACKER_PARAMS.map((name, index) => rule(TRACKER_RULE_ID_BASE + index, 1, name, removeParams, scope));
 }
 
 /** A declarativeNetRequest domain: lowercase hostname, no IPv6, no port. */
@@ -113,23 +136,24 @@ function domainsWhere(settings: Settings, enabled: boolean): string[] {
   return domains;
 }
 
-function shareRule(excluded: string[], requestDomains: string[] | null): TrackerRule | null {
+function shareRules(excluded: string[], requestDomains: string[] | null): TrackerRule[] {
   const params = [...TRACKER_PARAMS, ...SHARE_LINK_PARAMS];
+  let domains: string[];
   if (requestDomains) {
-    if (requestDomains.length === 0) return null;
-    return rule(SHARE_LINK_RULE_ID, 2, params, { requestDomains, excludedRequestDomains: excluded });
+    domains = requestDomains;
+  } else {
+    domains = SHARE_LINK_DOMAINS.filter((domain) => !domainCovered(domain, excluded));
   }
-  const domains = SHARE_LINK_DOMAINS.filter((domain) => !domainCovered(domain, excluded));
-  if (domains.length === 0) return null;
-  return rule(SHARE_LINK_RULE_ID, 2, params, {
-    requestDomains: [...domains],
-    excludedRequestDomains: excluded,
-  });
+  if (domains.length === 0) return [];
+  return params.map((name, index) =>
+    rule(SHARE_LINK_RULE_ID_BASE + index, 2, name, params, { requestDomains: domains, excludedRequestDomains: excluded }),
+  );
 }
 
 function rule(
   id: number,
   priority: number,
+  name: string,
   removeParams: string[],
   scope: { requestDomains?: string[]; excludedRequestDomains?: string[] },
 ): TrackerRule {
@@ -143,7 +167,9 @@ function rule(
       redirect: { transform: { queryTransform: { removeParams } } },
     },
     condition: {
-      ...(requestDomains ? { requestDomains } : { urlFilter: '*' }),
+      urlFilter: `^${name}^`,
+      isUrlFilterCaseSensitive: true,
+      ...(requestDomains ? { requestDomains } : {}),
       ...(excludedRequestDomains ? { excludedRequestDomains } : {}),
       resourceTypes: ['main_frame', 'sub_frame'],
     },

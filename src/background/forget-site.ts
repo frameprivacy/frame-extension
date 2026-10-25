@@ -10,9 +10,12 @@ const ORIGIN_DATA = {
   serviceWorkers: true,
 } as const;
 
-/** Firefox `hostnames` does not accept the HTTP cache. Cache storage is attempted by origin. */
+/**
+ * Firefox has no `cacheStorage` type and no `origins` filter: either one makes
+ * `browsingData.remove` throw, so up to 0.2.0 Forget this site always failed on Firefox.
+ * The Cache API is cleared from open tabs instead (see clearOpenTabs).
+ */
 const FIREFOX_HOSTNAME_DATA = {
-  cacheStorage: true,
   cookies: true,
   indexedDB: true,
   localStorage: true,
@@ -25,7 +28,7 @@ export async function clearSite(url: string | undefined): Promise<string> {
   if (!browser.browsingData?.remove) throw new Error('This browser can’t clear site data from an extension.');
   const target = forgetTarget(page, await cookieDomains());
   await removeSiteData(target);
-  await clearSessionStorage(target.hostnames);
+  await clearOpenTabs(target.hostnames);
   const extra = target.truncated ? ' Some further subdomains were left.' : '';
   return `Cleared cookies and site data for ${target.host}.${extra}`;
 }
@@ -50,9 +53,12 @@ async function removeSiteData(target: ForgetTarget): Promise<void> {
         FIREFOX_HOSTNAME_DATA,
       );
       try {
-        await browser.browsingData.remove({ origins }, { cache: true, cacheStorage: true });
+        await browser.browsingData.remove(
+          { hostnames } as unknown as Parameters<typeof browser.browsingData.remove>[0],
+          { cache: true },
+        );
       } catch {
-        /* Firefox may reject origin-scoped cache. Hostname data is already cleared. */
+        /* Older Firefox may not clear the HTTP cache by hostname. Cookies and storage are already cleared. */
       }
       return;
     }
@@ -69,7 +75,8 @@ function nonempty(values: string[]): [string, ...string[]] {
   return [first, ...rest];
 }
 
-async function clearSessionStorage(hostnames: readonly string[]): Promise<void> {
+/** Session storage and the Cache API, in open tabs of these hosts. Firefox can't clear either through browsingData. */
+async function clearOpenTabs(hostnames: readonly string[]): Promise<void> {
   if (!browser.scripting?.executeScript) return;
   let tabs: { id?: number; url?: string }[] = [];
   try {
@@ -86,12 +93,27 @@ async function clearSessionStorage(hostnames: readonly string[]): Promise<void> 
       try {
         await browser.scripting.executeScript({
           target: { tabId: tab.id },
-          world: 'MAIN',
-          func: () => sessionStorage.clear(),
+          func: clearPageStorage,
         });
       } catch {
         /* A restricted tab keeps its session storage. */
       }
     }),
   );
+}
+
+/** Runs in the page. It must not use anything from this module's scope. */
+async function clearPageStorage(): Promise<void> {
+  try {
+    sessionStorage.clear();
+  } catch {
+    /* Storage can be blocked for this page. */
+  }
+  try {
+    if (typeof caches === 'undefined') return;
+    const names = await caches.keys();
+    await Promise.all(names.map((name) => caches.delete(name)));
+  } catch {
+    /* The Cache API is only offered on secure pages. */
+  }
 }

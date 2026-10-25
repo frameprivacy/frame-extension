@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { bandLabel, clampScore, scoreBand } from '../lib/score';
 
 const R = 15.5;
@@ -36,6 +36,8 @@ export function ScoreRing({ score, size = 96 }: { score: number | null; size?: n
   const id = useId().replace(/:/g, '');
   const target = score === null ? null : clampScore(score);
   const [shown, setShown] = useState(() => (target === null || prefersReducedMotion() ? (target ?? 0) : 0));
+  const shownRef = useRef(shown);
+  shownRef.current = shown;
 
   useEffect(() => {
     if (target === null) return;
@@ -45,7 +47,9 @@ export function ScoreRing({ score, size = 96 }: { score: number | null; size?: n
     }
     let frame = 0;
     let start: number | null = null;
-    const from = 0;
+    // A new score from the next refresh moves from the number on screen, not from zero again.
+    const from = shownRef.current;
+    if (from === target) return;
     const step = (now: number) => {
       if (start === null) start = now;
       const elapsed = now - start - DELAY;

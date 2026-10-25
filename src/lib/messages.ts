@@ -16,6 +16,8 @@ export interface UiState {
   account: PublicAccount | null;
   authError: string | null;
   signingIn: boolean;
+  /** False when the browser has taken away Frame's access to websites. Page protections can't run then. */
+  siteAccess: boolean;
   tab: { host: string | null; restricted: boolean };
   siteNotice: SiteNotice | null;
 }
