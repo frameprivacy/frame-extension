@@ -3,8 +3,10 @@ import { browser } from 'wxt/browser';
 import { TOGGLES, PERMISSIONS } from '../lib/catalog';
 import { controlDisabled, controlNote } from '../lib/control';
 import type { FrameExposure } from '../lib/frame/types';
+import { areaLabel, bandLabel, clampScore, scoreBand } from '../lib/score';
 import type { PublicAccount } from '../lib/messages';
 import { fingerprintEnabledForHost, trackersEnabledForHost } from '../lib/settings';
+import { ScoreRing } from './ScoreRing';
 import { useExtensionState } from './useExtensionState';
 
 export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
@@ -35,19 +37,21 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
           </>
         ) : null}
 
-        {error ? <p className="error">{error}</p> : null}
+        {error ? (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        ) : null}
         {!state ? (
-          <p className="quiet">Loading…</p>
+          error ? null : <LoadingState />
         ) : (
           <>
-            {state.account ? (
-              <ScoreCard account={state.account} />
-            ) : (
-              <p className="quiet">
-                Optional. Privacy settings work without an account. Your password stays on frameprivacy.com.
+            {state.account ? <ScoreCard account={state.account} /> : <SignedOutCard />}
+            {state.authError ? (
+              <p className="error" role="alert">
+                {state.authError}
               </p>
-            )}
-            {state.authError ? <p className="error">{state.authError}</p> : null}
+            ) : null}
 
             {variant === 'popup' ? (
               <SiteCard
@@ -83,27 +87,11 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
               />
             ) : null}
 
-            <p className="label">Protections</p>
-            <div className="panel rows">
-              {TOGGLES.map((toggle) => {
-                const control = state.controls[toggle.id];
-                return (
-                  <div className={controlDisabled(control) ? 'row is-locked' : 'row'} key={toggle.id}>
-                    <div className="row-copy">
-                      <h3>{toggle.title}</h3>
-                      <p>{options ? toggle.detail : toggle.summary}</p>
-                      {controlNote(control) ? <p className="note">{controlNote(control)}</p> : null}
-                    </div>
-                    <Switch
-                      label={toggle.title}
-                      checked={state.settings[toggle.id]}
-                      disabled={controlDisabled(control)}
-                      onChange={(value) => void send({ type: 'frame.set-setting', id: toggle.id, value })}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            <Protections
+              state={state}
+              options={options}
+              onChange={(id, value) => void send({ type: 'frame.set-setting', id, value })}
+            />
 
             {options ? (
               <Exceptions
@@ -159,18 +147,60 @@ function AccountButton({
   );
 }
 
-function ScoreCard({ account }: { account: PublicAccount }) {
-  const name = account.name || account.email;
+function LoadingState() {
   return (
-    <section className="panel score-panel">
+    <div className="loading" aria-busy="true" aria-live="polite">
+      <span className="visually-hidden">Loading Frame…</span>
+      <div className="panel skeleton skeleton-score" />
+      <div className="panel skeleton skeleton-rows" />
+    </div>
+  );
+}
+
+function SignedOutCard() {
+  return (
+    <section className="panel score-panel" aria-labelledby="score-title">
       <div className="score-top">
-        <ExposureScore exposure={account.exposure} />
-        <div className="who">
-          <div className="who-name">{name}</div>
-          {account.name ? <div className="who-mail">{account.email}</div> : null}
-          {account.plan ? <div className="plan">{planLabel(account.plan)}</div> : null}
+        <ScoreRing score={null} />
+        <div className="score-copy">
+          <h2 className="score-title" id="score-title">
+            Privacy Score
+          </h2>
+          <p className="hint">
+            Sign in to see the score from your Frame account. Optional: the protections below work without one.
+          </p>
         </div>
       </div>
+    </section>
+  );
+}
+
+function ScoreCard({ account }: { account: PublicAccount }) {
+  const name = account.name || account.email;
+  const score = account.exposure?.score ?? null;
+  return (
+    <section className="panel score-panel" aria-labelledby="score-title">
+      <div className="score-top">
+        <ScoreRing score={score} />
+        <div className="score-copy">
+          <h2 className="score-title" id="score-title">
+            Privacy Score
+          </h2>
+          {score === null ? (
+            <p className="score-band">Not checked yet</p>
+          ) : (
+            <p className="score-band">{bandLabel(scoreBand(clampScore(score)))}</p>
+          )}
+          <div className="who">
+            <span className="who-name">{name}</span>
+            {account.plan ? <span className="plan">{planLabel(account.plan)}</span> : null}
+          </div>
+          {account.name ? <div className="who-mail">{account.email}</div> : null}
+        </div>
+      </div>
+      {score === null ? (
+        <p className="hint score-note">Frame shows a score once it has checked something for your account.</p>
+      ) : null}
       <ExposureMeta exposure={account.exposure} />
       <AreaList exposure={account.exposure} />
       {account.preview ? <p className="preview">Preview data, not connected</p> : null}
@@ -178,19 +208,53 @@ function ScoreCard({ account }: { account: PublicAccount }) {
   );
 }
 
-function ExposureScore({ exposure }: { exposure: FrameExposure | null }) {
-  if (!exposure || exposure.score === null) {
+function Protections({
+  state,
+  options,
+  onChange,
+}: {
+  state: NonNullable<ReturnType<typeof useExtensionState>['state']>;
+  options: boolean;
+  onChange: (id: (typeof TOGGLES)[number]['id'], value: boolean) => void;
+}) {
+  const offered = TOGGLES.filter((toggle) => state.controls[toggle.id]?.kind !== 'unavailable');
+  const missing = TOGGLES.filter((toggle) => state.controls[toggle.id]?.kind === 'unavailable');
+  const row = (toggle: (typeof TOGGLES)[number]) => {
+    const control = state.controls[toggle.id];
+    const note = control?.kind === 'unavailable' ? null : controlNote(control);
     return (
-      <div>
-        <div className="score-empty">Not checked yet</div>
+      <div className={controlDisabled(control) ? 'row is-locked' : 'row'} key={toggle.id}>
+        <div className="row-copy">
+          <h3>{toggle.title}</h3>
+          <p>{options ? toggle.detail : toggle.summary}</p>
+          {note ? <p className="note">{note}</p> : null}
+        </div>
+        <Switch
+          label={toggle.title}
+          checked={state.settings[toggle.id]}
+          disabled={controlDisabled(control)}
+          onChange={(value) => onChange(toggle.id, value)}
+        />
       </div>
     );
-  }
+  };
   return (
-    <div>
-      <div className="score-num">{exposure.score}</div>
-      <div className="score-caption">Privacy score</div>
-    </div>
+    <>
+      <p className="label">Protections</p>
+      <div className="panel rows">{offered.map(row)}</div>
+      {missing.length > 0 ? (
+        <details className="panel unavailable">
+          <summary>
+            <span>Not offered by this browser</span>
+            <span className="count">{missing.length}</span>
+          </summary>
+          <p className="hint unavailable-hint">
+            This browser has no setting an extension can change for these, so Frame leaves them alone.
+          </p>
+          <div className="rows">{missing.map(row)}</div>
+        </details>
+      ) : null}
+    </>
   );
 }
 
@@ -207,14 +271,30 @@ function ExposureMeta({ exposure }: { exposure: FrameExposure | null }) {
 function AreaList({ exposure }: { exposure: FrameExposure | null }) {
   if (!exposure || exposure.areas.length === 0) return null;
   return (
-    <ul className="areas">
+    <ul className="areas" aria-label="What makes up your score">
       {exposure.areas.map((area, index) => (
         <li key={`${area.key}-${index}`}>
-          <span>{area.key.replaceAll('_', ' ')}</span>
-          <span className="area-score">{area.score === null ? 'Not checked yet' : area.score}</span>
+          <div className="area-head">
+            <span>{areaLabel(area.key)}</span>
+            <span className="area-score">{area.score === null ? 'Not checked yet' : clampScore(area.score)}</span>
+          </div>
+          {area.score !== null ? <AreaBar value={clampScore(area.score)} /> : null}
         </li>
       ))}
     </ul>
+  );
+}
+
+function AreaBar({ value }: { value: number }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setWidth(value));
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return (
+    <div className="bar" aria-hidden="true">
+      <div className="bar-fill" style={{ width: `${width}%` }} />
+    </div>
   );
 }
 
