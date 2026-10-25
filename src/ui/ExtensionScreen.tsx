@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { TOGGLES, PERMISSIONS } from '../lib/catalog';
 import { controlDisabled, controlNote } from '../lib/control';
@@ -6,11 +6,12 @@ import type { FrameExposure } from '../lib/frame/types';
 import { areaLabel, bandLabel, clampScore, scoreBand } from '../lib/score';
 import type { PublicAccount } from '../lib/messages';
 import { fingerprintEnabledForHost, trackersEnabledForHost } from '../lib/settings';
+import { SITE_ORIGINS } from '../lib/site-access';
 import { ScoreRing } from './ScoreRing';
 import { useExtensionState } from './useExtensionState';
 
 export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
-  const { state, error, send } = useExtensionState();
+  const { state, error, send, refresh } = useExtensionState();
   const options = variant === 'options';
 
   return (
@@ -38,14 +39,20 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
         ) : null}
 
         {error ? (
-          <p className="error" role="alert">
-            {error}
-          </p>
+          <div className="error-block" role="alert">
+            <p className="error">{error}</p>
+            {!state ? (
+              <button type="button" className="text-link" onClick={() => void refresh()}>
+                Try again
+              </button>
+            ) : null}
+          </div>
         ) : null}
         {!state ? (
           error ? null : <LoadingState />
         ) : (
           <>
+            {state.siteAccess === false ? <SiteAccessCard onGranted={() => void refresh()} /> : null}
             {state.account ? <ScoreCard account={state.account} /> : <SignedOutCard />}
             {state.authError ? (
               <p className="error" role="alert">
@@ -192,10 +199,10 @@ function ScoreCard({ account }: { account: PublicAccount }) {
             <p className="score-band">{bandLabel(scoreBand(clampScore(score)))}</p>
           )}
           <div className="who">
-            <span className="who-name">{name}</span>
+            <span className="who-name" title={name}>{name}</span>
             {account.plan ? <span className="plan">{planLabel(account.plan)}</span> : null}
           </div>
-          {account.name ? <div className="who-mail">{account.email}</div> : null}
+          {account.name ? <div className="who-mail" title={account.email}>{account.email}</div> : null}
         </div>
       </div>
       {score === null ? (
@@ -344,10 +351,23 @@ function SiteCard({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const clearRef = useRef<HTMLButtonElement>(null);
+  const forgetRef = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
   useEffect(() => {
     setConfirming(false);
     setClearing(false);
   }, [host]);
+  // The button that was pressed goes away, so keyboard focus moves with the question and back.
+  useEffect(() => {
+    if (confirming) clearRef.current?.focus();
+    else if (returnFocus.current) forgetRef.current?.focus();
+    returnFocus.current = false;
+  }, [confirming]);
+  const cancel = () => {
+    returnFocus.current = true;
+    setConfirming(false);
+  };
 
   return (
     <>
@@ -399,7 +419,17 @@ function SiteCard({
             </div>
             {trackerNote ? <p className="note hint">{trackerNote}</p> : null}
             {confirming ? (
-              <div className="confirm">
+              <div
+                className="confirm"
+                role="group"
+                aria-label={`Forget ${host}`}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape' && !clearing) {
+                    event.stopPropagation();
+                    cancel();
+                  }
+                }}
+              >
                 <p className="hint">
                   Clear cookies and site data for {host} on this device? You’ll be signed out of that site. This does
                   not erase history, or data the site already kept on its servers. Storage on subdomains we can see is
@@ -409,28 +439,34 @@ function SiteCard({
                   <button
                     type="button"
                     className="btn"
+                    ref={clearRef}
                     disabled={clearing}
                     onClick={() => {
                       setClearing(true);
                       void onForget().then((ok) => {
-                        if (ok) setConfirming(false);
+                        if (ok) {
+                          returnFocus.current = true;
+                          setConfirming(false);
+                        }
                         setClearing(false);
                       });
                     }}
                   >
                     {clearing ? 'Clearing…' : 'Clear data'}
                   </button>
-                  <button type="button" className="text-link" onClick={() => setConfirming(false)} disabled={clearing}>
+                  <button type="button" className="text-link" onClick={cancel} disabled={clearing}>
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <button type="button" className="text-link site-forget" onClick={() => setConfirming(true)}>
+              <button type="button" className="text-link site-forget" ref={forgetRef} onClick={() => setConfirming(true)}>
                 Forget this site
               </button>
             )}
-            {notice ? <p className={notice.tone === 'error' ? 'error notice' : 'hint notice'}>{notice.text}</p> : null}
+            <div role="status" aria-live="polite">
+              {notice ? <p className={notice.tone === 'error' ? 'error notice' : 'hint notice'}>{notice.text}</p> : null}
+            </div>
             {notice?.canReload ? (
               <button type="button" className="text-link" onClick={() => void onReload()}>
                 Reload tab
@@ -441,6 +477,42 @@ function SiteCard({
         {note ? <p className="note hint">{note}</p> : null}
       </section>
     </>
+  );
+}
+
+function SiteAccessCard({ onGranted }: { onGranted: () => void }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <section className="panel access-panel" aria-labelledby="access-title">
+      <h2 className="host-sub" id="access-title">
+        Frame can’t reach websites
+      </h2>
+      <p className="hint">
+        Website access for Frame is off in this browser, so Global Privacy Control, clean tracking links, referrer
+        trimming, and fingerprinting protection aren’t running. Frame doesn’t read or send page content.
+      </p>
+      <button
+        type="button"
+        className="btn access-btn"
+        onClick={() => {
+          // permissions.request must run straight from the click.
+          void browser.permissions
+            .request({ origins: [...SITE_ORIGINS] })
+            .then((granted) => {
+              setFailed(!granted);
+              if (granted) onGranted();
+            })
+            .catch(() => setFailed(true));
+        }}
+      >
+        Allow website access
+      </button>
+      {failed ? (
+        <p className="error" role="alert">
+          Access wasn’t granted. You can also turn it on from this add-on’s page in the browser’s add-on settings.
+        </p>
+      ) : null}
+    </section>
   );
 }
 

@@ -2,7 +2,7 @@ import { browser } from 'wxt/browser';
 import type { ControlState } from '../lib/control';
 import { GPC_RULE_ID, REFERRER_RULE_ID, headerRules } from '../lib/dnr';
 import type { Settings } from '../lib/settings';
-import { SHARE_LINK_RULE_ID, TRACKER_RULE_ID, trackerRules } from '../lib/trackers';
+import { trackerRuleIds, trackerRules } from '../lib/trackers';
 
 const HEADER_ERROR = 'Could not update header rules.';
 const TRACKER_ERROR = 'Could not update tracking-link rules.';
@@ -26,7 +26,7 @@ export async function applyHeaderRules(settings: Settings): Promise<{
   }
   try {
     await browser.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [GPC_RULE_ID, REFERRER_RULE_ID, TRACKER_RULE_ID, SHARE_LINK_RULE_ID],
+      removeRuleIds: [GPC_RULE_ID, REFERRER_RULE_ID, ...trackerRuleIds()],
       addRules: [...headerRules(settings), ...trackerRules(settings)] as Parameters<
         typeof browser.declarativeNetRequest.updateDynamicRules
       >[0]['addRules'],

@@ -61,7 +61,7 @@ Each browser setting shows when Frame cannot change it: another extension has it
 | Do Not Track | `doNotTrackEnabled = true`, where the browser offers it to extensions (current Firefox does not). Many sites ignore it. |
 | Search suggestions | Chromium only. Stops the address bar from sending what you type to the search engine. |
 | Navigation error reports | Chromium only. Stops Chrome from sending failed addresses out for alternate error pages. |
-| Forget this site | Popup action, after a confirm. Clears that site’s cookies, local storage, IndexedDB, cache storage, and service workers on this device, plus the network cache when the browser can limit that to the site. Session storage is cleared in open tabs. You’ll be signed out. History is kept, and so is anything the site already stored on its servers. Chrome also clears cookies for the rest of that site’s registrable domain. Subdomains found from cookie domains are included; a parent host’s storage is not. |
+| Forget this site | Popup action, after a confirm. Clears that site’s cookies, local storage, IndexedDB, cache storage, and service workers on this device, plus the network cache when the browser can limit that to the site. Session storage is cleared in open tabs. Firefox has no way for an extension to clear cache storage, so on Firefox it is cleared in that site’s open tabs. You’ll be signed out. History is kept, and so is anything the site already stored on its servers. Chrome also clears cookies for the rest of that site’s registrable domain. Subdomains found from cookie domains are included; a parent host’s storage is not. |
 
 Settings are applied to the regular profile. If you allow Frame in private windows, the page scripts run there too. Some browser settings cannot be changed for private windows.
 
@@ -76,7 +76,7 @@ Settings are applied to the regular profile. If you allow Frame in private windo
 | `declarativeNetRequest` | Sets the `Sec-GPC` request header and the `Referrer-Policy` response header, and removes tracking parameters from navigations. |
 | `browsingData` | Clears cookies, storage, cache, and service workers for one site when you choose Forget this site. |
 | `cookies` | Reads cookie domains so that clear can include subdomains. Cookie values are not saved or sent anywhere. |
-| `http://*/*`, `https://*/*` | Those scripts and header rules have to run on the sites you visit. Frame does not read page contents into an account. |
+| `http://*/*`, `https://*/*` | Those scripts and header rules have to run on the sites you visit. Frame does not read page contents into an account. Firefox lets you turn this access off on the add-on’s page; the popup then says which protections stopped and offers a button to allow it again. |
 | `https://frameprivacy.com/*` | Calls the sign-in API. Requests omit the website’s cookies. |
 
 Tokens live in extension local storage. Sites cannot read that storage. It is not the OS keychain. Access tokens last 15 minutes. Refresh tokens last 30 days, rotate on every use, and a reused refresh token signs you out. Sign-out revokes the token. See [docs/auth.md](docs/auth.md) and [PRIVACY.md](PRIVACY.md).

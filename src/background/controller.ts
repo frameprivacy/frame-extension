@@ -29,6 +29,8 @@ import { applyHeaderRules } from './network';
 import { applyPageScripts } from './page-scripts';
 import { clearSite } from './forget-site';
 import { clearSession, loadSession, loadSettings, saveSession, saveSettings } from './store';
+import { hasSiteAccess } from './site-access';
+import { siteAccessControls } from '../lib/site-access';
 
 const client = createFrameClient();
 const EXPOSURE_TTL_MS = 5 * 60 * 1000;
@@ -38,13 +40,17 @@ let authError: string | null = null;
 let signingIn = false;
 let exposureFetchedAt = 0;
 let siteNotice: SiteNotice | null = null;
+let siteAccess = true;
 let appliedSignature = '';
 let chain: Promise<unknown> = Promise.resolve();
 
 export function startBackground(): void {
-  browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (!isExtensionMessage(message)) return false;
-    void enqueue(() => handle(message))
+  browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!isExtensionMessage(message) || !fromExtensionPage(sender)) return false;
+    // Sign-in waits on the browser's sign-in window, which can stay open for minutes.
+    // It runs beside the queue so the popup and options page keep working meanwhile.
+    const run = message.type === 'frame.sign-in' ? signIn() : enqueue(() => handle(message));
+    void run
       .then(sendResponse)
       .catch((error: unknown) => {
         sendResponse({
@@ -59,6 +65,13 @@ export function startBackground(): void {
   browser.runtime.onStartup.addListener(() => {
     void enqueue(applyCurrent);
   });
+  // Firefox lets people take away website access from the add-on's page in about:addons.
+  const reapply = () => {
+    appliedSignature = '';
+    void enqueue(applyCurrent);
+  };
+  browser.permissions?.onAdded?.addListener(reapply);
+  browser.permissions?.onRemoved?.addListener(reapply);
   void enqueue(applyCurrent);
 }
 
@@ -80,8 +93,6 @@ async function handle(message: ExtensionMessage): Promise<UiState> {
       return forgetActiveSite();
     case 'frame.reload-tab':
       return reloadActiveTab();
-    case 'frame.sign-in':
-      return signIn();
     case 'frame.sign-out':
       return signOut();
     default:
@@ -174,12 +185,12 @@ async function clearHost(host: unknown): Promise<UiState> {
 }
 
 async function signIn(): Promise<UiState> {
-  if (signingIn) return uiState(await loadSettings(), await loadSession());
+  if (signingIn) return enqueue(async () => uiState(await loadSettings(), await loadSession()));
   signingIn = true;
   authError = null;
   try {
     if (client.mode === 'stub') {
-      await saveSession(createPreviewSession());
+      await enqueue(() => saveSession(createPreviewSession()));
       exposureFetchedAt = Date.now();
     } else {
       authError = await liveSignIn();
@@ -187,7 +198,7 @@ async function signIn(): Promise<UiState> {
   } finally {
     signingIn = false;
   }
-  return uiState(await loadSettings(), await loadSession());
+  return enqueue(async () => uiState(await loadSettings(), await loadSession()));
 }
 
 async function liveSignIn(): Promise<string | null> {
@@ -230,7 +241,7 @@ async function liveSignIn(): Promise<string | null> {
       if (error instanceof FrameApiError && endsSession(error)) throw error;
       exposure = null;
     }
-    await saveSession({ token, account, exposure });
+    await enqueue(() => saveSession({ token, account, exposure }));
     exposureFetchedAt = Date.now();
     return null;
   } catch (error) {
@@ -259,7 +270,8 @@ async function applyCurrent(): Promise<void> {
 }
 
 async function applyAll(settings: Settings): Promise<void> {
-  const signature = JSON.stringify(settings);
+  siteAccess = await hasSiteAccess();
+  const signature = JSON.stringify({ settings, siteAccess });
   if (signature === appliedSignature) {
     controls = { ...controls, ...(await applyPrivacySettings(settings)) };
     return;
@@ -269,10 +281,12 @@ async function applyAll(settings: Settings): Promise<void> {
   const scripts = await applyPageScripts(settings);
   controls = {
     ...privacy,
-    sendGpc: aggregateControls([headers.sendGpc, scripts.sendGpc]),
-    trimReferrers: headers.trimReferrers,
-    fingerprintProtection: scripts.fingerprintProtection,
-    stripTrackers: headers.stripTrackers,
+    ...siteAccessControls(siteAccess, settings, {
+      sendGpc: aggregateControls([headers.sendGpc, scripts.sendGpc]),
+      trimReferrers: headers.trimReferrers,
+      fingerprintProtection: scripts.fingerprintProtection,
+      stripTrackers: headers.stripTrackers,
+    }),
   };
   const failed = [
     headers.sendGpc,
@@ -292,6 +306,7 @@ async function refreshedSession(session: StoredSession | null): Promise<StoredSe
       const token = await client.refresh(current.token.refreshToken, current.token.clientId);
       current = withToken(current, token);
       await saveSession(current);
+      authError = null;
     } catch (error) {
       if (error instanceof FrameApiError && endsSession(error)) {
         await clearSession();
@@ -306,6 +321,8 @@ async function refreshedSession(session: StoredSession | null): Promise<StoredSe
   try {
     const exposure = await client.getExposure(current.token.accessToken);
     exposureFetchedAt = Date.now();
+    // A refresh that failed for a moment earlier left its message behind. This call proves the session works.
+    authError = null;
     if (JSON.stringify(exposure) !== JSON.stringify(current.exposure)) {
       current = { ...current, exposure };
       await saveSession(current);
@@ -328,6 +345,7 @@ async function uiState(settings: Settings, session: StoredSession | null): Promi
     account: session ? publicAccount(session) : null,
     authError,
     signingIn,
+    siteAccess,
     tab: await currentTab(),
     siteNotice,
   };
@@ -367,6 +385,12 @@ function describeTab(tab: { id?: number; url?: string } | undefined): {
 } {
   const classified = classifyUrl(tab?.url);
   return { id: tab?.id ?? null, url: tab?.url ?? null, host: classified.host, restricted: classified.restricted };
+}
+
+/** Only Frame's own popup and options page may change settings. */
+function fromExtensionPage(sender: { id?: string; url?: string }): boolean {
+  if (sender.id !== browser.runtime.id) return false;
+  return typeof sender.url === 'string' && sender.url.startsWith(browser.runtime.getURL('/'));
 }
 
 function enqueue<T>(task: () => Promise<T>): Promise<T> {

@@ -133,7 +133,8 @@ button:disabled {
 
 .panel.pad,
 .score-panel,
-.site-panel {
+.site-panel,
+.access-panel {
   padding: 14px 16px;
 }
 
@@ -700,4 +701,16 @@ button:disabled {
   .skeleton::after {
     animation: none;
   }
+}
+
+.error-block .text-link {
+  margin: 6px 2px 0;
+}
+
+.access-panel {
+  margin-top: 12px;
+}
+
+.access-btn {
+  margin-top: 12px;
 }
