@@ -2,7 +2,8 @@ import { browser } from 'wxt/browser';
 import { looksLikeEmailField } from '../lib/aliases';
 import type { AliasMessage, PageAlias, PageCreateResult, PageListResult, PageUseResult } from '../lib/messages';
 
-const BADGE_SIZE = 22;
+// 24px is the smallest pointer target WCAG 2.2 (2.5.8) allows; smaller only when the field itself is shorter.
+const BADGE_SIZE = 24;
 const MENU_WIDTH = 292;
 const Z_TOP = '2147483647';
 
@@ -24,7 +25,7 @@ const STYLE = `
   font: 13px/1.35 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   box-shadow: 0 12px 32px rgba(0,0,0,0.45);
 }
-.title { margin: 2px 6px 8px; color: rgba(255,255,255,0.45); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+.title { margin: 2px 6px 8px; color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
 .menu button.item {
   display: block; width: 100%; margin: 0; padding: 8px 10px; border: 0; border-radius: 9px;
   background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
@@ -33,6 +34,10 @@ const STYLE = `
 .menu button.primary { background: #fff; color: #000; font-weight: 500; }
 .menu button.primary:hover, .menu button.primary:focus-visible { background: #f0f0f0; }
 .menu button:disabled { opacity: 0.5; cursor: default; }
+@media (forced-colors: active) {
+  .badge, .menu { border-color: CanvasText; }
+  .menu button.item:focus-visible { outline: 2px solid Highlight; }
+}
 .addr { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .sub { display: block; margin-top: 2px; color: rgba(255,255,255,0.55); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .primary .sub { color: rgba(0,0,0,0.6); }
@@ -71,8 +76,11 @@ export function startAliasAutofill(): void {
   const badge = document.createElement('button');
   badge.type = 'button';
   badge.className = 'badge';
-  badge.title = 'Use a Frame email alias';
+  // The page may be in any language; this UI is English, so screen readers should read it as English.
+  badge.lang = 'en';
+  badge.title = 'Use a Frame email alias (Alt+Down)';
   badge.setAttribute('aria-label', 'Use a Frame email alias');
+  badge.setAttribute('aria-keyshortcuts', 'Alt+ArrowDown');
   badge.setAttribute('aria-haspopup', 'menu');
   badge.setAttribute('aria-expanded', 'false');
   badge.append(symbol());
@@ -82,6 +90,7 @@ export function startAliasAutofill(): void {
   menu.className = 'menu';
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', 'Frame email alias');
+  menu.lang = 'en';
   menu.hidden = true;
   shadow.append(badge, menu);
 
@@ -191,10 +200,33 @@ export function startAliasAutofill(): void {
     void openMenu();
   });
   shadow.addEventListener('keydown', (event) => {
-    if (!(event instanceof KeyboardEvent) || event.key !== 'Escape') return;
+    if (!(event instanceof KeyboardEvent)) return;
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      closeMenu();
+      field?.focus();
+      return;
+    }
+    if (menu.hidden) return;
+    // A menu moves with the arrow keys (WAI-ARIA menu pattern). Tab leaves it, back to the field.
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      closeMenu();
+      field?.focus();
+      return;
+    }
+    const items = [...menu.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)')];
+    if (items.length === 0) return;
+    const at = items.indexOf(shadow.activeElement as HTMLButtonElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = at < 0 ? 0 : (at + 1) % items.length;
+    else if (event.key === 'ArrowUp') next = at < 0 ? items.length - 1 : (at - 1 + items.length) % items.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    if (next < 0) return;
+    event.preventDefault();
     event.stopPropagation();
-    closeMenu();
-    field?.focus();
+    items[next]?.focus();
   });
   // Alt+Down in an email field opens the menu from the keyboard, like a native suggestion list.
   document.addEventListener(

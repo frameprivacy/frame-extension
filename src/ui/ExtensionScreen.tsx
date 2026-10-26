@@ -33,7 +33,7 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
 
   return (
     <div className="shell">
-      <div className={options ? 'options-body' : 'popup-body'}>
+      <main className={options ? 'options-body' : 'popup-body'}>
         <header className="header">
           <img className="mark" src="/wordmark.svg" alt="Frame" />
           {state && (state.signInAvailable || state.account !== null) ? (
@@ -45,6 +45,7 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
             />
           ) : null}
         </header>
+        {options ? null : <h1 className="visually-hidden">Frame privacy controls</h1>}
 
         {options ? (
           <>
@@ -152,7 +153,7 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
             </footer>
           </>
         )}
-      </div>
+      </main>
     </div>
   );
 }
@@ -263,11 +264,16 @@ function Protections({
       <div className={controlDisabled(control) ? 'row is-locked' : 'row'} key={toggle.id}>
         <div className="row-copy">
           <h3>{toggle.title}</h3>
-          <p>{options ? toggle.detail : toggle.summary}</p>
-          {note ? <p className="note">{note}</p> : null}
+          <p id={`${toggle.id}-desc`}>{options ? toggle.detail : toggle.summary}</p>
+          {note ? (
+            <p className="note" id={`${toggle.id}-note`}>
+              {note}
+            </p>
+          ) : null}
         </div>
         <Switch
           label={toggle.title}
+          describedBy={note ? `${toggle.id}-desc ${toggle.id}-note` : `${toggle.id}-desc`}
           checked={state.settings[toggle.id]}
           disabled={controlDisabled(control)}
           onChange={(value) => onChange(toggle.id, value)}
@@ -277,7 +283,7 @@ function Protections({
   };
   return (
     <>
-      <p className="label">Protections</p>
+      <h2 className="label">Protections</h2>
       <div className="panel rows">{offered.map(row)}</div>
       {missing.length > 0 ? (
         <details className="panel unavailable">
@@ -406,23 +412,23 @@ function SiteCard({
 
   return (
     <>
-      <p className="label">This site</p>
+      <h2 className="label">This site</h2>
       <section className="panel site-panel">
         {restricted ? (
           <>
-            <h2 className="host">Browser page</h2>
+            <h3 className="host">Browser page</h3>
             <p className="hint">Frame doesn’t change pages like this.</p>
           </>
         ) : !host ? (
           <>
-            <h2 className="host">No site</h2>
+            <h3 className="host">No site</h3>
             <p className="hint">Open a page to set fingerprinting for that site.</p>
           </>
         ) : (
           <>
             <div className="site-row">
               <div>
-                <h2 className="host">{host}</h2>
+                <h3 className="host">{host}</h3>
                 <p className="hint">
                   {customized
                     ? 'Fingerprinting is saved for this site only.'
@@ -438,7 +444,7 @@ function SiteCard({
             </div>
             <div className="site-row site-follow">
               <div>
-                <h3 className="host-sub">Clean tracking links</h3>
+                <h4 className="host-sub">Clean tracking links</h4>
                 <p className="hint">
                   {trackersCustomized
                     ? 'Saved for this site and its subdomains.'
@@ -575,7 +581,7 @@ function Exceptions({
   const trackers = Object.entries(state.settings.trackerHosts).sort(([a], [b]) => a.localeCompare(b));
   return (
     <>
-      <p className="label">Site exceptions</p>
+      <h2 className="label">Site exceptions</h2>
       {hosts.length === 0 ? (
         <p className="empty panel">
           No fingerprint exceptions. Open Frame on a page that breaks, and turn fingerprinting off for that site only.
@@ -587,14 +593,19 @@ function Exceptions({
             <li key={host}>
               <span>{host}</span>
               <span className="pill">{enabled ? 'Fingerprinting on' : 'Fingerprinting off'}</span>
-              <button type="button" className="text-link" onClick={() => onClear(host)}>
+              <button
+                type="button"
+                className="text-link"
+                aria-label={`Remove fingerprinting exception for ${host}`}
+                onClick={() => onClear(host)}
+              >
                 Remove
               </button>
             </li>
           ))}
         </ul>
       )}
-      <p className="label">Tracking link exceptions</p>
+      <h2 className="label">Tracking link exceptions</h2>
       {trackers.length === 0 ? (
         <p className="empty panel">
           No tracking-link exceptions. Turn clean tracking links off for a site from the popup when a link breaks. That
@@ -606,7 +617,12 @@ function Exceptions({
             <li key={host}>
               <span>{host}</span>
               <span className="pill">{enabled ? 'Cleaning on' : 'Cleaning off'}</span>
-              <button type="button" className="text-link" onClick={() => onClearTracker(host)}>
+              <button
+                type="button"
+                className="text-link"
+                aria-label={`Remove tracking-link exception for ${host}`}
+                onClick={() => onClearTracker(host)}
+              >
                 Remove
               </button>
             </li>
@@ -620,7 +636,7 @@ function Exceptions({
 function PermissionList({ browser: target, signInAvailable }: { browser: BrowserTarget; signInAvailable: boolean }) {
   return (
     <>
-      <p className="label">Permissions</p>
+      <h2 className="label">Permissions</h2>
       <dl className="permissions panel">
         {permissionsFor(target, signInAvailable).map((permission) => (
           <div key={permission.name}>

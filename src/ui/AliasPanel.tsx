@@ -35,7 +35,7 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
     if (!options) return null;
     return (
       <>
-        <p className="label" id="aliases">Email aliases</p>
+        <h2 className="label" id="aliases">Email aliases</h2>
         <p className="empty panel">
           {signInAvailable
             ? 'Sign in to make Frame email aliases: a different address for each site, forwarded to your inbox. You can turn one off when it gets spam.'
@@ -49,9 +49,9 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
   if (needsReconnect) {
     return (
       <>
-        <p className="label" id="aliases">Email aliases</p>
+        <h2 className="label" id="aliases">Email aliases</h2>
         <section className="panel pad alias-panel">
-          <h2 className="host-sub">Allow email aliases</h2>
+          <h3 className="host-sub">Allow email aliases</h3>
           <p className="hint">
             Frame can make a different email address for each site and fill it into sign-up forms. Sign in again and
             approve <strong>email aliases</strong> to turn this on. Your other settings stay as they are.
@@ -85,7 +85,9 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
 
   return (
     <>
-      <p className="label" id="aliases">Email aliases</p>
+      <h2 className="label" id="aliases" tabIndex={-1}>
+        Email aliases
+      </h2>
       <section className="panel alias-panel">
         <div className="alias-head">
           {options ? (
@@ -163,7 +165,12 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
                 site={site}
                 onEnabled={(enabled) => aliases.setEnabled(alias.id, enabled)}
                 onRename={(next) => aliases.rename(alias.id, next)}
-                onDelete={() => aliases.remove(alias.id)}
+                onDelete={async () => {
+                  const failed = await aliases.remove(alias.id);
+                  // The deleted row and its buttons are gone; put focus somewhere it can carry on from.
+                  if (failed === null) document.getElementById('aliases')?.focus();
+                  return failed;
+                }}
               />
             ))}
           </ul>
@@ -173,12 +180,17 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
           <div className="row alias-setting">
             <div className="row-copy">
               <h3>Offer aliases in email fields</h3>
-              <p>
+              <p id="alias-autofill-desc">
                 Shows a small Frame button in email fields on websites. Frame only fills a field when you pick an alias,
                 and it notes the site against that alias. It doesn’t read what you type or send page contents anywhere.
               </p>
             </div>
-            <Switch label="Offer aliases in email fields" checked={autofill} onChange={onAutofill} />
+            <Switch
+              label="Offer aliases in email fields"
+              describedBy="alias-autofill-desc"
+              checked={autofill}
+              onChange={onAutofill}
+            />
           </div>
         ) : (
           <div className="alias-foot">
@@ -249,10 +261,30 @@ function AliasItem({
   const [draft, setDraft] = useState(alias.label ?? '');
   const [confirming, setConfirming] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const renameRef = useRef<HTMLButtonElement>(null);
+  const deleteRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  // The pressed button goes away while editing or confirming, so focus moves with the form and comes back after.
+  const back = useRef<'rename' | 'delete' | null>(null);
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
+    else if (back.current === 'rename') renameRef.current?.focus();
+    if (!editing && back.current === 'rename') back.current = null;
   }, [editing]);
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus();
+    else if (back.current === 'delete') deleteRef.current?.focus();
+    if (!confirming && back.current === 'delete') back.current = null;
+  }, [confirming]);
+  const stopEditing = () => {
+    back.current = 'rename';
+    setEditing(false);
+  };
+  const stopConfirming = () => {
+    back.current = 'delete';
+    setConfirming(false);
+  };
 
   const act = async (task: () => Promise<string | null>) => {
     setBusy(true);
@@ -306,9 +338,12 @@ function AliasItem({
               aria-label={`Label for ${alias.address}`}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Escape') setEditing(false);
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  stopEditing();
+                }
                 if (event.key === 'Enter' && !busy) {
-                  void act(() => onRename(draft.trim() || null)).then((ok) => ok && setEditing(false));
+                  void act(() => onRename(draft.trim() || null)).then((ok) => ok && stopEditing());
                 }
               }}
             />
@@ -316,25 +351,35 @@ function AliasItem({
               type="button"
               className="btn"
               disabled={busy}
-              onClick={() => void act(() => onRename(draft.trim() || null)).then((ok) => ok && setEditing(false))}
+              onClick={() => void act(() => onRename(draft.trim() || null)).then((ok) => ok && stopEditing())}
             >
               Save
             </button>
-            <button type="button" className="text-link" onClick={() => setEditing(false)} disabled={busy}>
+            <button type="button" className="text-link" onClick={stopEditing} disabled={busy}>
               Cancel
             </button>
           </div>
         ) : confirming ? (
-          <div className="confirm" role="group" aria-label={`Delete ${alias.address}`}>
+          <div
+            className="confirm"
+            role="group"
+            aria-label={`Delete ${alias.address}`}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !busy) {
+                event.stopPropagation();
+                stopConfirming();
+              }
+            }}
+          >
             <p className="hint">
               Delete {alias.address}? Mail sent to it stops arriving, and Frame never gives this address out again. To
               pause it instead, turn it off.
             </p>
             <div className="site-actions">
-              <button type="button" className="btn" disabled={busy} onClick={() => void act(onDelete)}>
+              <button type="button" className="btn" ref={confirmRef} disabled={busy} onClick={() => void act(onDelete)}>
                 {busy ? 'Deleting…' : 'Delete alias'}
               </button>
-              <button type="button" className="text-link" onClick={() => setConfirming(false)} disabled={busy}>
+              <button type="button" className="text-link" onClick={stopConfirming} disabled={busy}>
                 Cancel
               </button>
             </div>
@@ -344,6 +389,8 @@ function AliasItem({
             <button
               type="button"
               className="text-link"
+              ref={renameRef}
+              aria-label={`${alias.label ? 'Rename' : 'Add label to'} ${alias.address}`}
               onClick={() => {
                 setDraft(alias.label ?? '');
                 setEditing(true);
@@ -351,7 +398,13 @@ function AliasItem({
             >
               {alias.label ? 'Rename' : 'Add label'}
             </button>
-            <button type="button" className="text-link" onClick={() => setConfirming(true)}>
+            <button
+              type="button"
+              className="text-link"
+              ref={deleteRef}
+              aria-label={`Delete ${alias.address}`}
+              onClick={() => setConfirming(true)}
+            >
               Delete
             </button>
           </div>
