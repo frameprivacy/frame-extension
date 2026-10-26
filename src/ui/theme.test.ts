@@ -1,8 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-
-const css = readFileSync(fileURLToPath(new URL('./theme.css', import.meta.url)), 'utf8');
+import css from './theme.css?raw';
 
 type Rgba = [number, number, number, number];
 
