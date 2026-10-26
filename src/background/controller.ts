@@ -7,7 +7,10 @@ import { buildAuthorizeUrl } from '../lib/frame/parse';
 import { createPreviewSession } from '../lib/frame/stub';
 import type { FrameExposure } from '../lib/frame/types';
 import {
+  isAliasMessage,
   isExtensionMessage,
+  isPageAliasMessage,
+  type AliasAccess,
   type ExtensionMessage,
   type PublicAccount,
   type SiteNotice,
@@ -31,6 +34,8 @@ import { clearSite } from './forget-site';
 import { clearSession, loadSession, loadSettings, saveSession, saveSettings } from './store';
 import { hasSiteAccess } from './site-access';
 import { siteAccessControls } from '../lib/site-access';
+import { hasAliasScope } from '../lib/aliases';
+import { handleAliasMessage } from './aliases';
 
 const client = createFrameClient();
 const EXPOSURE_TTL_MS = 5 * 60 * 1000;
@@ -46,6 +51,24 @@ let chain: Promise<unknown> = Promise.resolve();
 
 export function startBackground(): void {
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (isAliasMessage(message)) {
+      const allowed = isPageAliasMessage(message) ? fromOwnContentScript(sender) : fromExtensionPage(sender);
+      if (!allowed) return false;
+      void handleAliasMessage(message, sender, {
+        client,
+        enqueue,
+        refreshedToken,
+        browsingTabHost: async () => (await browsingTab()).host,
+        sessionEnded: async () => {
+          await clearSession();
+          authError = SESSION_ENDED;
+          await applyAll(await loadSettings());
+        },
+      })
+        .then(sendResponse)
+        .catch(() => sendResponse({ ok: false, error: 'Frame hit an unexpected error.', code: null, reconnect: false }));
+      return true;
+    }
     if (!isExtensionMessage(message) || !fromExtensionPage(sender)) return false;
     // Sign-in waits on the browser's sign-in window, which can stay open for minutes.
     // It runs beside the queue so the popup and options page keep working meanwhile.
@@ -103,8 +126,8 @@ async function handle(message: ExtensionMessage): Promise<UiState> {
 async function getState(): Promise<UiState> {
   siteNotice = null;
   const settings = await loadSettings();
-  await applyAll(settings);
   const session = await refreshedSession(await loadSession());
+  await applyAll(settings);
   return uiState(settings, session);
 }
 
@@ -198,7 +221,12 @@ async function signIn(): Promise<UiState> {
   } finally {
     signingIn = false;
   }
-  return enqueue(async () => uiState(await loadSettings(), await loadSession()));
+  return enqueue(async () => {
+    const settings = await loadSettings();
+    // A new sign-in may have granted (or dropped) the aliases scope, which turns the email-field menu on or off.
+    await applyAll(settings);
+    return uiState(settings, await loadSession());
+  });
 }
 
 async function liveSignIn(): Promise<string | null> {
@@ -262,7 +290,9 @@ async function signOut(): Promise<UiState> {
   }
   await clearSession();
   exposureFetchedAt = 0;
-  return uiState(await loadSettings(), null);
+  const settings = await loadSettings();
+  await applyAll(settings);
+  return uiState(settings, null);
 }
 
 async function applyCurrent(): Promise<void> {
@@ -271,14 +301,15 @@ async function applyCurrent(): Promise<void> {
 
 async function applyAll(settings: Settings): Promise<void> {
   siteAccess = await hasSiteAccess();
-  const signature = JSON.stringify({ settings, siteAccess });
+  const aliasesReady = siteAccess && aliasAccess(await loadSession()) === 'ready';
+  const signature = JSON.stringify({ settings, siteAccess, aliasesReady });
   if (signature === appliedSignature) {
     controls = { ...controls, ...(await applyPrivacySettings(settings)) };
     return;
   }
   const privacy = await applyPrivacySettings(settings);
   const headers = await applyHeaderRules(settings);
-  const scripts = await applyPageScripts(settings);
+  const scripts = await applyPageScripts(settings, aliasesReady);
   controls = {
     ...privacy,
     ...siteAccessControls(siteAccess, settings, {
@@ -348,7 +379,25 @@ async function uiState(settings: Settings, session: StoredSession | null): Promi
     siteAccess,
     tab: await currentTab(),
     siteNotice,
+    aliasAccess: aliasAccess(session),
   };
+}
+
+function aliasAccess(session: StoredSession | null): AliasAccess {
+  if (!session) return 'signed-out';
+  return hasAliasScope(session.token.scope) ? 'ready' : 'needs-scope';
+}
+
+/**
+ * An access token that is good for at least another minute. Runs in the queue, so two alias calls never
+ * rotate the same refresh token (a reused refresh token ends the session).
+ */
+async function refreshedToken(): Promise<string | null> {
+  const session = await loadSession();
+  if (!session) return null;
+  if (!isTokenExpired(session.token.expiresAt)) return session.token.accessToken;
+  const current = await refreshedSession(session);
+  return current?.token.accessToken ?? null;
 }
 
 function publicAccount(session: StoredSession): PublicAccount {
@@ -391,6 +440,12 @@ function describeTab(tab: { id?: number; url?: string } | undefined): {
 function fromExtensionPage(sender: { id?: string; url?: string }): boolean {
   if (sender.id !== browser.runtime.id) return false;
   return typeof sender.url === 'string' && sender.url.startsWith(browser.runtime.getURL('/'));
+}
+
+/** Frame's own content script, running in a normal web page tab. */
+function fromOwnContentScript(sender: { id?: string; url?: string; tab?: { id?: number } }): boolean {
+  if (sender.id !== browser.runtime.id || sender.tab?.id === undefined) return false;
+  return typeof sender.url === 'string' && /^https?:\/\//i.test(sender.url);
 }
 
 function enqueue<T>(task: () => Promise<T>): Promise<T> {

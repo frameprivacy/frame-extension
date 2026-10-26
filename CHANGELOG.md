@@ -2,6 +2,15 @@
 
 All notable changes to the Frame extension. Versions match `package.json` and the manifest.
 
+## Unreleased
+
+- **Email aliases.** Signed in, focus an email field and a small Frame button offers *New alias for this site* or one of your aliases, and fills it in. Picking an existing alias on a new site adds that site to its *Used on* list.
+- **Manage aliases** on the options page: make one with a label, copy, rename, pause, or delete, and see the site each alias was made on and every site it was used on. The popup makes an alias for the site you are on and lists the ones already used there.
+- *Offer aliases in email fields* turns the field button off. The button is only added to pages while you are signed in with aliases allowed.
+- Sign-in now asks for the `aliases` scope. If you signed in with an earlier version, choose *Allow aliases* to sign in again.
+
+No new permissions. The alias menu uses the existing website access and `scripting`.
+
 ## 0.2.1
 
 Bug fixes, found by loading the 0.2.0 build in Firefox and Chrome and checking what actually happened.

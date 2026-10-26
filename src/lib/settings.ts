@@ -11,6 +11,7 @@ export const BOOLEAN_SETTING_IDS = [
   'disableSearchSuggestions',
   'disableAlternateErrorPages',
   'stripTrackers',
+  'aliasAutofill',
 ] as const;
 
 export type BooleanSettingId = (typeof BOOLEAN_SETTING_IDS)[number];
@@ -32,6 +33,8 @@ export interface Settings {
   disableSearchSuggestions: boolean;
   disableAlternateErrorPages: boolean;
   stripTrackers: boolean;
+  /** Offer a Frame email alias in email fields. Only runs when signed in with the aliases scope. */
+  aliasAutofill: boolean;
 }
 
 export function defaultSettings(): Settings {
@@ -51,6 +54,7 @@ export function defaultSettings(): Settings {
     disableSearchSuggestions: true,
     disableAlternateErrorPages: true,
     stripTrackers: true,
+    aliasAutofill: true,
   };
 }
 

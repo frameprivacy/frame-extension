@@ -113,7 +113,7 @@ export const PERMISSIONS: { name: string; why: string }[] = [
   },
   {
     name: 'scripting',
-    why: 'Injects the fingerprint normalizer and the Global Privacy Control flag into pages you visit.',
+    why: 'Injects the fingerprint normalizer and the Global Privacy Control flag into pages you visit. Signed in, it also adds the email alias menu to email fields.',
   },
   {
     name: 'declarativeNetRequest',

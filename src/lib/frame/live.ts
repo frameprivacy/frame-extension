@@ -1,6 +1,8 @@
 import { FrameApiError, NETWORK_ERROR } from './errors';
+import { parseAliasEnvelope, parseAliasList, type Alias, type AliasList, type AliasPatch } from '../aliases';
 import {
   ACCOUNT_PATH,
+  ALIASES_PATH,
   EXPOSURE_PATH,
   FRAME_ORIGIN,
   REVOKE_PATH,
@@ -11,7 +13,7 @@ import {
   parseTokenResponse,
   readJson,
 } from './parse';
-import type { ExchangeInput, FrameAccount, FrameClient, FrameExposure, TokenSet } from './types';
+import type { CreateAliasInput, ExchangeInput, FrameAccount, FrameClient, FrameExposure, TokenSet } from './types';
 
 /**
  * Calls run from the background script, with credentials omitted so the
@@ -61,6 +63,40 @@ export class LiveFrameClient implements FrameClient {
     return parseExposure(await this.get(EXPOSURE_PATH, accessToken));
   }
 
+  async listAliases(accessToken: string): Promise<AliasList> {
+    return parseAliasList(await this.get(ALIASES_PATH, accessToken));
+  }
+
+  async createAlias(accessToken: string, input: CreateAliasInput): Promise<Alias> {
+    const body: Record<string, string | null> = {};
+    if (input.label !== undefined) body.label = input.label;
+    if (input.site) body.site = input.site;
+    return parseAliasEnvelope(await this.send(ALIASES_PATH, { method: 'POST', accessToken, body: JSON.stringify(body) }));
+  }
+
+  async getAlias(accessToken: string, id: string): Promise<Alias> {
+    return parseAliasEnvelope(await this.get(aliasPath(id), accessToken));
+  }
+
+  async updateAlias(accessToken: string, id: string, patch: AliasPatch): Promise<Alias> {
+    const body: AliasPatch = {};
+    if (patch.enabled !== undefined) body.enabled = patch.enabled;
+    if (patch.label !== undefined) body.label = patch.label;
+    return parseAliasEnvelope(
+      await this.send(aliasPath(id), { method: 'PATCH', accessToken, body: JSON.stringify(body) }),
+    );
+  }
+
+  async deleteAlias(accessToken: string, id: string): Promise<void> {
+    await this.send(aliasPath(id), { method: 'DELETE', accessToken });
+  }
+
+  async recordAliasUsage(accessToken: string, id: string, site: string): Promise<Alias> {
+    return parseAliasEnvelope(
+      await this.send(`${aliasPath(id)}/usages`, { method: 'POST', accessToken, body: JSON.stringify({ site }) }),
+    );
+  }
+
   private async token(body: Record<string, string>): Promise<TokenSet> {
     const clientId = body.client_id ?? '';
     return parseTokenResponse(await this.post(TOKEN_PATH, this.withClient(body)), clientId);
@@ -82,7 +118,7 @@ export class LiveFrameClient implements FrameClient {
 
   private async send(
     path: string,
-    init: { method: 'GET' | 'POST'; body?: string; accessToken?: string },
+    init: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: string; accessToken?: string },
   ): Promise<unknown> {
     let response: Response;
     try {
@@ -102,4 +138,8 @@ export class LiveFrameClient implements FrameClient {
     }
     return readJson(response);
   }
+}
+
+function aliasPath(id: string): string {
+  return `${ALIASES_PATH}/${encodeURIComponent(id)}`;
 }

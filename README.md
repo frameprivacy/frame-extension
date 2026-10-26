@@ -40,6 +40,7 @@ Everything works without an account. Signing in to a Frame account is optional a
 - **Protections** are on from the first install. Each one says when the browser does not offer it, or when another extension or a policy controls it. Settings the browser does not offer are grouped under *Not offered by this browser*, so nothing pretends to work when it can't.
 - **All settings** opens the options page with the full explanation of every switch, your per-site exceptions, and every permission.
 - **Privacy Score (optional).** Signed in, the popup shows the same Privacy Score as your Frame dashboard, as a ring out of 100 with its band (Good 80+, Fair 60+, Needs work 40+, At risk below 40) and the score for each area Frame has checked. The number comes from the Frame API. Signed out, or before Frame has checked anything, the ring stays empty; the extension never shows a made-up score.
+- **Email aliases (optional).** Signed in, focus an email field and a small Frame button offers **New alias for this site** or one of your existing aliases, and fills it in. Mail to an alias is forwarded to your Frame email. The options page lists every alias with its label, the site it was made on, and the sites it has been used on, and lets you rename, pause, copy, or delete it. The popup makes an alias for the site you are on. *Offer aliases in email fields* turns the field button off.
 
 ## What the toggles do
 
@@ -72,12 +73,12 @@ Settings are applied to the regular profile. If you allow Frame in private windo
 | `storage` | Saves toggles, per-site fingerprint exceptions, and the Frame session on this device. |
 | `privacy` | Reads and sets the browser privacy settings above, and reads `levelOfControl`. |
 | `identity` | Opens frameprivacy.com with `launchWebAuthFlow` and receives the redirect. Does not read a Google account. |
-| `scripting` | Injects the fingerprint normalizer and the Global Privacy Control flag. |
+| `scripting` | Injects the fingerprint normalizer and the Global Privacy Control flag. Signed in with aliases allowed, it also registers the email alias menu. |
 | `declarativeNetRequest` | Sets the `Sec-GPC` request header and the `Referrer-Policy` response header, and removes tracking parameters from navigations. |
 | `browsingData` | Clears cookies, storage, cache, and service workers for one site when you choose Forget this site. |
 | `cookies` | Reads cookie domains so that clear can include subdomains. Cookie values are not saved or sent anywhere. |
-| `http://*/*`, `https://*/*` | Those scripts and header rules have to run on the sites you visit. Frame does not read page contents into an account. Firefox lets you turn this access off on the add-on’s page; the popup then says which protections stopped and offers a button to allow it again. |
-| `https://frameprivacy.com/*` | Calls the sign-in API. Requests omit the website’s cookies. |
+| `http://*/*`, `https://*/*` | Those scripts and header rules have to run on the sites you visit, and the alias menu has to appear in their email fields. Frame does not read page contents into an account. Firefox lets you turn this access off on the add-on’s page; the popup then says which protections stopped and offers a button to allow it again. |
+| `https://frameprivacy.com/*` | Calls the sign-in, score, and alias APIs. Requests omit the website’s cookies. |
 
 Tokens live in extension local storage. Sites cannot read that storage. It is not the OS keychain. Access tokens last 15 minutes. Refresh tokens last 30 days, rotate on every use, and a reused refresh token signs you out. Sign-out revokes the token. See [docs/auth.md](docs/auth.md) and [PRIVACY.md](PRIVACY.md).
 

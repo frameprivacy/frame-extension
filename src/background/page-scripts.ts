@@ -2,6 +2,7 @@ import { browser } from 'wxt/browser';
 import type { ControlState } from '../lib/control';
 import type { Settings } from '../lib/settings';
 import {
+  ALIAS_SCRIPT_ID,
   FINGERPRINT_SCRIPT_ID,
   GPC_SCRIPT_ID,
   fingerprintMatchPatterns,
@@ -10,10 +11,11 @@ import {
   type ScriptRegistration,
 } from '../lib/scripts';
 
-const KNOWN_IDS = [GPC_SCRIPT_ID, FINGERPRINT_SCRIPT_ID];
+const KNOWN_IDS = [GPC_SCRIPT_ID, FINGERPRINT_SCRIPT_ID, ALIAS_SCRIPT_ID];
 
 export async function applyPageScripts(
   settings: Settings,
+  aliasesReady = false,
 ): Promise<{ sendGpc: ControlState; fingerprintProtection: ControlState }> {
   if (!browser.scripting?.registerContentScripts || !browser.scripting.getRegisteredContentScripts) {
     const unavailable: ControlState = {
@@ -25,7 +27,7 @@ export async function applyPageScripts(
       fingerprintProtection: fingerprintWanted(settings) ? unavailable : { kind: 'applied' },
     };
   }
-  const scripts = scriptRegistrations(settings);
+  const scripts = scriptRegistrations(settings, aliasesReady);
   try {
     const existing = await browser.scripting.getRegisteredContentScripts();
     const remove = existing.map((script) => script.id).filter((id) => KNOWN_IDS.includes(id));

@@ -3,12 +3,14 @@ import { FrameApiError, messageForApiError } from './errors';
 import type { AuthorizeInput, ExposureArea, FrameAccount, FrameExposure, FramePlan, TokenSet } from './types';
 
 export const FRAME_ORIGIN = 'https://frameprivacy.com';
-export const FRAME_SCOPE = 'account exposure';
+/** `aliases` is opt-in on the site, so the extension asks for it by name. */
+export const FRAME_SCOPE = 'account exposure aliases';
 export const AUTHORIZE_PATH = '/connect';
 export const TOKEN_PATH = '/api/extension/token';
 export const REVOKE_PATH = '/api/extension/revoke';
 export const ACCOUNT_PATH = '/api/extension/account';
 export const EXPOSURE_PATH = '/api/extension/exposure';
+export const ALIASES_PATH = '/api/aliases';
 
 const DEFAULT_EXPIRES_IN = 900;
 
