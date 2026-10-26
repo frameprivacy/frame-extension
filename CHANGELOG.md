@@ -11,6 +11,15 @@ All notable changes to the Frame extension. Versions match `package.json` and th
 
 No new permissions. The alias menu uses the existing website access and `scripting`.
 
+### Safari
+
+- **Safari build** for Mac, iPhone, and iPad (Safari 16.4 or newer): `npm run build:safari` and `npm run dev:safari` make `.output/safari-mv3`. `npm run safari:xcode` wraps it in an Xcode project on a Mac (app `com.frameprivacy.safari`, extension `com.frameprivacy.safari.extension`). Guide: `docs/safari.md`. Not in the App Store yet.
+- On Safari, Global Privacy Control, clean tracking links, and fingerprinting protection work as on other browsers. *Trim cross-site referrers* and the browser privacy settings are listed under *Not offered by this browser*, because Safari has no response-header rules and no `privacy` API.
+- **Forget this site on Safari** removes the site's cookies and clears its storage in open tabs. Safari has no `browsingData` API, so the cache and storage for closed tabs stay, and the result says so.
+- The website-access card explains Safari's per-site access and how to allow Frame on every website.
+- **Sign-in on Safari is not available yet.** Safari has no `identity` API. The Safari build has a tab-based sign-in that sends `client=safari`, kept off until frameprivacy.com allows the Safari client (`docs/auth.md`). The popup says so instead of offering a button that would fail.
+- The Safari manifest asks for fewer permissions: no `privacy`, `identity`, or `browsingData`, and no Chromium `key` or Firefox `gecko` block. Chrome and Firefox manifests are unchanged.
+
 ## 0.2.1
 
 Bug fixes, found by loading the 0.2.0 build in Firefox and Chrome and checking what actually happened.

@@ -1,3 +1,5 @@
+import type { BrowserTarget } from './platform';
+
 export const GPC_RULE_ID = 1;
 export const REFERRER_RULE_ID = 2;
 
@@ -20,6 +22,37 @@ const HEADER_RESOURCE_TYPES = [
   'other',
 ] as const;
 
+/**
+ * Safari's declarativeNetRequest has no `csp_report` or `object` resource type
+ * (WebKit maps only the types below). Rules for Safari list only what it knows.
+ */
+const SAFARI_RESOURCE_TYPES = new Set<string>([
+  'main_frame',
+  'sub_frame',
+  'stylesheet',
+  'script',
+  'image',
+  'font',
+  'xmlhttprequest',
+  'ping',
+  'media',
+  'websocket',
+  'other',
+]);
+
+/**
+ * Safari can set request headers (16.4+) but does not offer `responseHeaders`
+ * to extensions, so the Referrer-Policy rule can't run there.
+ */
+export function canSetResponseHeaders(target: BrowserTarget): boolean {
+  return target !== 'safari';
+}
+
+export function resourceTypesFor(target: BrowserTarget, types: readonly string[]): string[] {
+  if (target !== 'safari') return [...types];
+  return types.filter((type) => SAFARI_RESOURCE_TYPES.has(type));
+}
+
 export interface HeaderRule {
   id: number;
   priority: number;
@@ -34,7 +67,7 @@ export interface HeaderRule {
   };
 }
 
-export function gpcRule(): HeaderRule {
+export function gpcRule(target: BrowserTarget = 'chrome'): HeaderRule {
   return {
     id: GPC_RULE_ID,
     priority: 1,
@@ -44,7 +77,7 @@ export function gpcRule(): HeaderRule {
     },
     condition: {
       urlFilter: '*',
-      resourceTypes: [...HEADER_RESOURCE_TYPES],
+      resourceTypes: resourceTypesFor(target, HEADER_RESOURCE_TYPES),
     },
   };
 }
@@ -64,9 +97,12 @@ export function referrerRule(): HeaderRule {
   };
 }
 
-export function headerRules(settings: { sendGpc: boolean; trimReferrers: boolean }): HeaderRule[] {
+export function headerRules(
+  settings: { sendGpc: boolean; trimReferrers: boolean },
+  target: BrowserTarget = 'chrome',
+): HeaderRule[] {
   const rules: HeaderRule[] = [];
-  if (settings.sendGpc) rules.push(gpcRule());
-  if (settings.trimReferrers) rules.push(referrerRule());
+  if (settings.sendGpc) rules.push(gpcRule(target));
+  if (settings.trimReferrers && canSetResponseHeaders(target)) rules.push(referrerRule());
   return rules;
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSettings, setBooleanSetting } from './settings';
-import { SITE_ACCESS_REASON, siteAccessControls, type SiteControls } from './site-access';
+import {
+  SAFARI_SITE_ACCESS_REASON,
+  SITE_ACCESS_REASON,
+  siteAccessControls,
+  siteAccessReason,
+  type SiteControls,
+} from './site-access';
 
 const applied: SiteControls = {
   sendGpc: { kind: 'applied' },
@@ -27,5 +33,26 @@ describe('website access', () => {
     });
     expect(controls.sendGpc).toEqual({ kind: 'applied' });
     expect(controls.trimReferrers).toEqual({ kind: 'error', reason: 'Could not update header rules.' });
+  });
+});
+
+describe('website access on Safari', () => {
+  it('says Frame only runs on the sites Safari allowed', () => {
+    const controls = siteAccessControls(false, defaultSettings(), applied, 'safari');
+    for (const state of Object.values(controls)) {
+      expect(state).toEqual({ kind: 'error', reason: SAFARI_SITE_ACCESS_REASON });
+    }
+    expect(siteAccessReason('firefox')).toBe(SITE_ACCESS_REASON);
+    expect(siteAccessReason('chrome')).toBe(SITE_ACCESS_REASON);
+  });
+
+  it('keeps a protection Safari never offers as not offered', () => {
+    const controls = siteAccessControls(
+      false,
+      defaultSettings(),
+      { ...applied, trimReferrers: { kind: 'unavailable', reason: 'no response headers' } },
+      'safari',
+    );
+    expect(controls.trimReferrers).toEqual({ kind: 'unavailable', reason: 'no response headers' });
   });
 });

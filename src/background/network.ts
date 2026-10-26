@@ -1,18 +1,24 @@
 import { browser } from 'wxt/browser';
 import type { ControlState } from '../lib/control';
-import { GPC_RULE_ID, REFERRER_RULE_ID, headerRules } from '../lib/dnr';
+import { GPC_RULE_ID, REFERRER_RULE_ID, canSetResponseHeaders, headerRules } from '../lib/dnr';
+import { browserTarget } from '../lib/platform';
 import type { Settings } from '../lib/settings';
 import { trackerRuleIds, trackerRules } from '../lib/trackers';
 
 const HEADER_ERROR = 'Could not update header rules.';
 const TRACKER_ERROR = 'Could not update tracking-link rules.';
+export const RESPONSE_HEADERS_UNAVAILABLE = 'Safari doesn’t let extensions change response headers, so Frame can’t set a Referrer-Policy here.';
 
 export async function applyHeaderRules(settings: Settings): Promise<{
   sendGpc: ControlState;
   trimReferrers: ControlState;
   stripTrackers: ControlState;
 }> {
-  const applied = { sendGpc: appliedState(), trimReferrers: appliedState(), stripTrackers: appliedState() };
+  const target = browserTarget(import.meta.env.BROWSER);
+  const referrerState: ControlState = canSetResponseHeaders(target)
+    ? appliedState()
+    : { kind: 'unavailable', reason: RESPONSE_HEADERS_UNAVAILABLE };
+  const applied = { sendGpc: appliedState(), trimReferrers: referrerState, stripTrackers: appliedState() };
   if (!browser.declarativeNetRequest?.updateDynamicRules) {
     const unavailable: ControlState = {
       kind: 'unavailable',
@@ -27,7 +33,7 @@ export async function applyHeaderRules(settings: Settings): Promise<{
   try {
     await browser.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: [GPC_RULE_ID, REFERRER_RULE_ID, ...trackerRuleIds()],
-      addRules: [...headerRules(settings), ...trackerRules(settings)] as Parameters<
+      addRules: [...headerRules(settings, target), ...trackerRules(settings)] as Parameters<
         typeof browser.declarativeNetRequest.updateDynamicRules
       >[0]['addRules'],
     });
@@ -35,7 +41,12 @@ export async function applyHeaderRules(settings: Settings): Promise<{
   } catch {
     return {
       sendGpc: settings.sendGpc ? { kind: 'error', reason: HEADER_ERROR } : appliedState(),
-      trimReferrers: settings.trimReferrers ? { kind: 'error', reason: HEADER_ERROR } : appliedState(),
+      trimReferrers:
+        referrerState.kind === 'unavailable'
+          ? referrerState
+          : settings.trimReferrers
+            ? { kind: 'error', reason: HEADER_ERROR }
+            : appliedState(),
       stripTrackers: settings.stripTrackers ? { kind: 'error', reason: TRACKER_ERROR } : appliedState(),
     };
   }

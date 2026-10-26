@@ -1,6 +1,6 @@
 # Frame extension sign-in
 
-The extension never asks for a Frame password. Sign-in opens `https://frameprivacy.com/connect` with `browser.identity.launchWebAuthFlow` (Chrome, Edge, Brave, and the Firefox equivalent). The site returns a scoped token. That token is not the website session.
+The extension never asks for a Frame password. Sign-in opens `https://frameprivacy.com/connect` with `browser.identity.launchWebAuthFlow` (Chrome, Edge, Brave, and the Firefox equivalent). Safari has no `identity` API and uses a tab instead; see [Safari](#safari). The site returns a scoped token. That token is not the website session.
 
 Privacy toggles work with no account. A stub build (`npm run dev:stub`, `npm run build:stub`) signs in to a labeled preview account and does not call the site.
 
@@ -10,8 +10,9 @@ Privacy toggles work with no account. A stub build (`npm run dev:stub`, `npm run
 
 | Browser | client_id | Redirect URI |
 | --- | --- | --- |
-| Chrome, unpacked, from the public key in `wxt.config.ts` | `mhemokfamnabliomlhigbkclcfcplfln` | `https://mhemokfamnabliomlhigbkclcfcplfln.chromiumapp.org/` |
+| Chrome, unpacked, from the public key in `src/lib/manifest.ts` | `mhemokfamnabliomlhigbkclcfcplfln` | `https://mhemokfamnabliomlhigbkclcfcplfln.chromiumapp.org/` |
 | Firefox | `86d25b817a984dadbf12ae6ae90c87df43543c41` | `https://86d25b817a984dadbf12ae6ae90c87df43543c41.extensions.allizom.org/` |
+| Safari (macOS, iOS), not live yet | `com.frameprivacy.safari.extension` | `https://frameprivacy.com/connect/safari` |
 
 Set the Chrome id as `FRAME_CHROME_EXTENSION_IDS`. Allow the Firefox id the same way.
 
@@ -32,7 +33,7 @@ Firefox will not load an add-on whose id is a bare hostname, and it will not put
 | `code_challenge_method` | `S256` |
 | `state` | 16–128 unreserved characters |
 | `scope` | `account exposure aliases` |
-| `client` | `firefox`, Firefox builds only |
+| `client` | `firefox` or `safari`; Chrome omits it |
 
 `scope` may be omitted. Omitted means both `account` and `exposure`. The extension sends all three. `aliases` is new in this version; a session from an earlier version does not have it, and the popup and options page offer *Allow aliases*, which signs in again with the new scope. The alias menu in email fields is registered only when the token response's `scope` includes `aliases`.
 
@@ -95,7 +96,7 @@ Both tokens must start with `frx_`. The extension refuses anything else, so a we
 
 ## Revoke
 
-`POST /api/extension/revoke` with `token` and `client_id`. Firefox also sends `client` set to `firefox`. The site also accepts `Authorization: Bearer`. The extension sends the JSON body. Local sign-out still deletes the session if revoke fails.
+`POST /api/extension/revoke` with `token` and `client_id`. Firefox and Safari also send `client` (`firefox` or `safari`). The site also accepts `Authorization: Bearer`. The extension sends the JSON body. Local sign-out still deletes the session if revoke fails.
 
 ## Account
 
@@ -180,6 +181,34 @@ Firefox builds identify themselves with `client=firefox`:
 - JSON field on `POST /api/extension/token` (both grant types) and `POST /api/extension/revoke`
 
 Account, exposure, and aliases stay Bearer-only. Match those by the token, and still allow the `moz-extension://` origin. The redirect URI and `client_id` stay `https://86d25b817a984dadbf12ae6ae90c87df43543c41.extensions.allizom.org/` and `86d25b817a984dadbf12ae6ae90c87df43543c41`. The manifest add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`.
+
+## Safari
+
+Safari has no `identity` API, so there is no `launchWebAuthFlow` and no browser-owned redirect host. The Safari build opens `/connect` in a normal tab and watches that tab for an `https` return page on frameprivacy.com. Details and what Safari supports are in [safari.md](safari.md).
+
+Sign-in is **off** in the Safari build (`SAFARI_SIGN_IN_READY = false` in `src/lib/extension-ids.ts`). The button is hidden and the popup says sign-in isn't available in Safari yet, so nobody is sent to a page that refuses them. Turn it on only after the site does all of this:
+
+1. **Client.** Allow `client_id=com.frameprivacy.safari.extension` (the extension's bundle id; it is not derived from a redirect host) together with `client=safari`.
+2. **Redirect URI.** Allow exactly `https://frameprivacy.com/connect/safari` for that client, nothing under it and no other host. After consent, `/connect` sends the tab there with an ordinary HTTP redirect: `https://frameprivacy.com/connect/safari?code=frc_...&state=...`, or `?error=access_denied&state=...` on cancel.
+3. **Return page.** Serve `/connect/safari` as a plain page: "You're signed in. You can close this tab." The extension closes the tab itself when it can. The URL carries the code, so the page must load no third-party scripts or analytics, send `Referrer-Policy: no-referrer` and `Cache-Control: no-store`, and never log the query string. The code is single-use, expires in a minute, and is useless without the PKCE verifier, which never leaves the extension.
+4. **`client=safari`.** Read it on `GET /connect` and as a JSON field on `POST /api/extension/token` (both grant types) and `POST /api/extension/revoke`, the same way as `client=firefox`.
+5. **Origin.** Safari extension fetches send `Origin: safari-web-extension://<per-install uuid>`. The uuid changes per install, like Firefox's. Allow any `safari-web-extension://` origin for the Safari client on `/api/extension/token`, `/revoke`, `/account`, `/exposure`, and `/api/aliases`. Account, exposure, and aliases stay Bearer-only.
+6. Then flip `SAFARI_SIGN_IN_READY` to `true` and ship a Safari build.
+
+Safari only shows an extension a tab's address on sites it is allowed on, so the *Sign in* click also asks Safari for access to `https://frameprivacy.com/*`. If that's declined, the popup says to allow Frame on frameprivacy.com and try again.
+
+The token exchange body from Safari:
+
+```json
+{
+  "grant_type": "authorization_code",
+  "code": "frc_...",
+  "redirect_uri": "https://frameprivacy.com/connect/safari",
+  "client_id": "com.frameprivacy.safari.extension",
+  "code_verifier": "the-original-verifier",
+  "client": "safari"
+}
+```
 
 A stub build, including on Firefox, still signs in to the preview account and does not call the site.
 

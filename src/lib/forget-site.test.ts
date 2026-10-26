@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { forgetTarget, pageTarget } from './forget-site';
+import { cookieClearMessage, cookieUrl, cookiesToForget, forgetTarget, pageTarget, type CookieRef } from './forget-site';
 
 describe('forget this site', () => {
   it('uses the open origin and both schemes for that host', () => {
@@ -32,5 +32,44 @@ describe('forget this site', () => {
     expect(pageTarget('chrome://settings')).toBeNull();
     expect(pageTarget(undefined)).toBeNull();
     expect(pageTarget('https://[::1]/')).toMatchObject({ host: '::1', origin: 'https://[::1]' });
+  });
+});
+
+describe('forget a site without browsingData (Safari)', () => {
+  const cookie = (domain: string, extra: Partial<CookieRef> = {}): CookieRef => ({
+    name: 'sid',
+    domain,
+    path: '/',
+    secure: true,
+    ...extra,
+  });
+
+  it('picks the site’s cookies, its subdomains, and parent-domain cookies it can read', () => {
+    const cookies = [
+      cookie('www.example.com'),
+      cookie('.example.com'),
+      cookie('a.www.example.com'),
+      cookie('mail.example.com'),
+      cookie('example.org'),
+      cookie('.com'),
+      cookie('notexample.com'),
+    ];
+    const kept = cookiesToForget(cookies, 'www.example.com', ['www.example.com', 'a.www.example.com']);
+    expect(kept.map((item) => item.domain)).toEqual(['www.example.com', '.example.com', 'a.www.example.com']);
+  });
+
+  it('builds the URL cookies.remove needs', () => {
+    expect(cookieUrl(cookie('.example.com', { path: '/app' }))).toBe('https://example.com/app');
+    expect(cookieUrl(cookie('example.com', { secure: false, path: '' }))).toBe('http://example.com/');
+    expect(cookieUrl(cookie('::1'))).toBe('https://[::1]/');
+  });
+
+  it('says plainly what Safari could not clear', () => {
+    expect(cookieClearMessage('example.com', 1, 0)).toBe(
+      'Cleared cookies for example.com and its storage in open tabs. Safari doesn’t let extensions clear the cache, or storage for tabs that aren’t open.',
+    );
+    expect(cookieClearMessage('example.com', 0, 2)).toBe(
+      'Cleared cookies for example.com. 2 cookies couldn’t be removed. Safari doesn’t let extensions clear the cache, or storage unless the site is open in a tab.',
+    );
   });
 });

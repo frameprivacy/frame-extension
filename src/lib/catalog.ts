@@ -1,3 +1,4 @@
+import type { BrowserTarget } from './platform';
 import type { BooleanSettingId } from './settings';
 
 export interface ToggleCopy {
@@ -136,3 +137,28 @@ export const PERMISSIONS: { name: string; why: string }[] = [
     why: 'Talks to the Frame sign-in API after you connect. The request does not include the website’s cookies.',
   },
 ];
+
+const SAFARI_OMITS = new Set(['privacy', 'identity', 'browsingData']);
+
+const SAFARI_WHY: Record<string, string> = {
+  scripting:
+    'Injects the fingerprint normalizer and the Global Privacy Control flag into pages you visit, and clears a site’s storage in its open tabs when you choose Forget this site.',
+  declarativeNetRequest:
+    'Adds the Sec-GPC request header and removes tracking parameters from navigations. Safari doesn’t let extensions change response headers.',
+  cookies:
+    'Removes a site’s cookies when you choose Forget this site, because Safari has no browsingData API. Cookie values are not saved or sent anywhere.',
+  'Host access, http and https':
+    'Those page scripts and header rules have to run on the sites you visit. Safari asks you site by site, or once for all websites. Frame does not read page contents into an account.',
+};
+
+/**
+ * The permissions this build asks for, with why. Safari's build has no
+ * privacy, identity, or browsingData permission (Safari has none of those APIs),
+ * and it only talks to frameprivacy.com once sign-in is available there.
+ */
+export function permissionsFor(target: BrowserTarget, signInAvailable: boolean): { name: string; why: string }[] {
+  if (target !== 'safari') return PERMISSIONS;
+  return PERMISSIONS.filter((item) => !SAFARI_OMITS.has(item.name))
+    .filter((item) => signInAvailable || item.name !== 'frameprivacy.com')
+    .map((item) => ({ name: item.name, why: SAFARI_WHY[item.name] ?? item.why }));
+}

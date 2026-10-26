@@ -19,7 +19,7 @@
 
 # Frame browser extension
 
-The [Frame](https://frameprivacy.com) extension puts real browser privacy settings in one popup: WebRTC IP leak protection, clean tracking links, fingerprinting protection, Global Privacy Control, and a one-click way to forget a site. It is a Manifest V3 extension for Firefox and Chromium browsers (Chrome, Brave, Edge).
+The [Frame](https://frameprivacy.com) extension puts real browser privacy settings in one popup: WebRTC IP leak protection, clean tracking links, fingerprinting protection, Global Privacy Control, and a one-click way to forget a site. It is a Manifest V3 extension for Firefox, Chromium browsers (Chrome, Brave, Edge), and Safari on Mac, iPhone, and iPad.
 
 Everything works without an account. Signing in to a Frame account is optional and only adds your Privacy Score to the popup. The extension never asks for your Frame password, collects no analytics, and does not make you anonymous. It is not a VPN.
 
@@ -33,6 +33,7 @@ Everything works without an account. Signing in to a Frame account is optional a
 | --- | --- |
 | Firefox 128 or newer | [Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/frame-privacy/) on Mozilla Add-ons. |
 | Chrome, Brave, Edge | Not in the Chrome Web Store yet. You can build it and [load it unpacked](#load-unpacked). |
+| Safari 16.4 or newer (Mac, iPhone, iPad) | Not in the App Store yet. Build it on a Mac with Xcode, see [Safari](#safari). |
 
 ## What you get
 
@@ -64,6 +65,8 @@ Each browser setting shows when Frame cannot change it: another extension has it
 | Navigation error reports | Chromium only. Stops Chrome from sending failed addresses out for alternate error pages. |
 | Forget this site | Popup action, after a confirm. Clears that site’s cookies, local storage, IndexedDB, cache storage, and service workers on this device, plus the network cache when the browser can limit that to the site. Session storage is cleared in open tabs. Firefox has no way for an extension to clear cache storage, so on Firefox it is cleared in that site’s open tabs. You’ll be signed out. History is kept, and so is anything the site already stored on its servers. Chrome also clears cookies for the rest of that site’s registrable domain. Subdomains found from cookie domains are included; a parent host’s storage is not. |
 
+Safari runs fewer of these, because it gives extensions fewer APIs. See [Safari](#safari).
+
 Settings are applied to the regular profile. If you allow Frame in private windows, the page scripts run there too. Some browser settings cannot be changed for private windows.
 
 ## Permissions
@@ -80,6 +83,8 @@ Settings are applied to the regular profile. If you allow Frame in private windo
 | `http://*/*`, `https://*/*` | Those scripts and header rules have to run on the sites you visit, and the alias menu has to appear in their email fields. Frame does not read page contents into an account. Firefox lets you turn this access off on the add-on’s page; the popup then says which protections stopped and offers a button to allow it again. |
 | `https://frameprivacy.com/*` | Calls the sign-in, score, and alias APIs. Requests omit the website’s cookies. |
 
+The Safari build asks only for `storage`, `scripting`, `declarativeNetRequest`, `cookies`, and website access. Safari has no `privacy`, `identity`, or `browsingData` API. There, `cookies` removes the site's cookies for Forget this site, and `scripting` also clears that site's storage in its open tabs.
+
 Tokens live in extension local storage. Sites cannot read that storage. It is not the OS keychain. Access tokens last 15 minutes. Refresh tokens last 30 days, rotate on every use, and a reused refresh token signs you out. Sign-out revokes the token. See [docs/auth.md](docs/auth.md) and [PRIVACY.md](PRIVACY.md).
 
 ## Development
@@ -90,6 +95,7 @@ Node.js 22 or newer (CI uses 22).
 npm ci
 npm run dev          # Chrome, reload on change
 npm run dev:firefox  # Firefox, reload on change
+npm run dev:safari   # Safari, rebuilds .output/safari-mv3-dev on change
 npm test
 npm run typecheck
 npm run lint
@@ -100,6 +106,7 @@ Production bundles:
 ```bash
 npm run build            # .output/chrome-mv3
 npm run build:firefox    # .output/firefox-mv3
+npm run build:safari     # .output/safari-mv3
 ```
 
 `npm run dev:stub` and `npm run build:stub` sign in to a labeled preview account (`ada@example.com`, marked *Preview data, not connected*) without calling frameprivacy.com. Use that only to look at the signed-in UI. A normal build talks to the live API in [docs/auth.md](docs/auth.md). Firefox uses `browser.identity.launchWebAuthFlow` with the same PKCE flow as Chrome, and sends `client=firefox` so the site can allow its `moz-extension://` origin.
@@ -136,10 +143,35 @@ Set these on the site before sign-in can succeed. Details and redirect URIs are 
 | --- | --- |
 | Chrome (`FRAME_CHROME_EXTENSION_IDS`) | `mhemokfamnabliomlhigbkclcfcplfln` |
 | Firefox client id | `86d25b817a984dadbf12ae6ae90c87df43543c41` |
+| Safari client id (not live yet) | `com.frameprivacy.safari.extension` |
 
-The Chrome id comes from the public key in `wxt.config.ts`. The private key is not in this repo. A Chrome Web Store build that Google re-signs gets a different id; add that id too.
+The Chrome id comes from the public key in `src/lib/manifest.ts`. The private key is not in this repo. A Chrome Web Store build that Google re-signs gets a different id; add that id too.
 
 Firefox's add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`. The Firefox manifest sets that id under `browser_specific_settings.gecko.id` and requests `https://frameprivacy.com/*`. Firefox does not accept a bare hostname as an add-on id, and the redirect host is SHA-1 of the add-on id. The client id in the table is that host label. Allow it the same way as the Chrome id. Also allow `Origin: moz-extension://` plus any install uuid, and read `client=firefox` on the connect URL and on token and revoke. Chrome does not send `client`.
+
+## Safari
+
+`npm run build:safari` makes the Safari Web Extension in `.output/safari-mv3`, here or in CI. Safari installs extensions only from an app, so the rest happens on a Mac with Xcode. The full guide, with what Safari supports, is [docs/safari.md](docs/safari.md).
+
+What Safari can and can't do with Frame:
+
+| | Safari |
+| --- | --- |
+| Global Privacy Control, clean tracking links, fingerprinting protection | Yes |
+| Forget this site | Cookies, plus storage in the site's open tabs. Safari can't clear the cache or storage for closed tabs. |
+| Trim cross-site referrers | No. Safari doesn't let extensions change response headers. |
+| WebRTC, third-party cookies, and the other browser settings | No. Safari has no `privacy` API. Use Safari's *Prevent cross-site tracking* and *Hide IP address*. |
+| Frame account sign-in (Privacy Score, aliases) | Not yet. Safari has no `identity` API; the tab-based sign-in turns on once frameprivacy.com allows the Safari client ([docs/auth.md](docs/auth.md#safari)). |
+
+Safari asks for website access site by site. Until Frame is allowed on every website, it only protects the sites you've allowed, and the popup says so.
+
+On a Mac (Xcode 15 or newer):
+
+1. `npm ci && npm run safari:xcode`. This runs `xcrun safari-web-extension-packager` on `.output/safari-mv3` with app bundle id `com.frameprivacy.safari` and writes `safari-xcode/Frame/Frame.xcodeproj` (macOS and iOS targets).
+2. Open it in Xcode. On all four targets, set your signing team, and set both extension targets' bundle id to `com.frameprivacy.safari.extension`.
+3. Run the macOS scheme, then turn Frame on in Safari › Settings › Extensions. For an unsigned build, first use Develop › *Allow Unsigned Extensions*. Run the iOS scheme on a device and turn Frame on in Settings › Apps › Safari › Extensions.
+4. Check the packager's manifest warnings and Xcode's build warnings. There is no `web-ext lint` for Safari.
+5. Product › Archive for *Any Mac* and *Any iOS Device*, then Distribute App › App Store Connect, and submit both builds under one app record with the privacy label, screenshots, and review notes listed in [docs/safari.md](docs/safari.md#app-store).
 
 ## Scripts
 
@@ -150,6 +182,9 @@ Firefox's add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`. The Firefox man
 | `npm run build:stub` | Chrome build signed in to the labeled preview account |
 | `npm run build` | Chrome MV3 bundle |
 | `npm run build:firefox` | Firefox MV3 bundle |
+| `npm run dev:safari` | Safari dev build, rebuilt on change (load it through Xcode) |
+| `npm run build:safari` | Safari MV3 bundle |
+| `npm run safari:xcode` | macOS only: build for Safari and make the Xcode project in `safari-xcode/` |
 | `npm test` | Unit tests for settings, header rules, tracking parameters, forget-site origins, fingerprint policy, and sign-in parsing, and Privacy Score bands |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `wxt prepare` and `tsc --noEmit` |

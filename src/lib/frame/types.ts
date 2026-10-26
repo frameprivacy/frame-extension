@@ -41,8 +41,8 @@ export interface AuthorizeInput {
   codeChallenge: string;
   clientId: string;
   scope?: string;
-  /** Firefox only. Sent as the `client` query parameter. */
-  client?: 'firefox' | null;
+  /** Firefox and Safari only. Sent as the `client` query parameter. */
+  client?: 'firefox' | 'safari' | null;
 }
 
 export interface ExchangeInput {

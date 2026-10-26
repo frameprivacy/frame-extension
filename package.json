@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
+    "dev:safari": "wxt -b safari",
     "dev:stub": "wxt --mode stub",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
+    "build:safari": "wxt build -b safari",
+    "safari:xcode": "sh scripts/safari-xcode.sh",
     "build:stub": "wxt build --mode stub",
     "prepare:types": "wxt prepare",
     "typecheck": "wxt prepare && tsc --noEmit",
