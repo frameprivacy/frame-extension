@@ -4,6 +4,8 @@ export const GPC_SCRIPT_ID = 'frame-gpc';
 export const FINGERPRINT_SCRIPT_ID = 'frame-fingerprint';
 export const GPC_SCRIPT_FILE = 'content-scripts/gpc.js';
 export const FINGERPRINT_SCRIPT_FILE = 'content-scripts/fingerprint.js';
+export const ALIAS_SCRIPT_ID = 'frame-aliases';
+export const ALIAS_SCRIPT_FILE = 'content-scripts/aliases.js';
 
 const PAGE_MATCHES = ['http://*/*', 'https://*/*'];
 
@@ -12,8 +14,9 @@ export interface ScriptRegistration {
   js: string[];
   matches: string[];
   excludeMatches?: string[];
-  runAt: 'document_start';
-  world: 'MAIN';
+  runAt: 'document_start' | 'document_idle';
+  /** Omitted means the content script's own isolated world. */
+  world?: 'MAIN';
   allFrames: true;
   matchOriginAsFallback?: true;
   persistAcrossSessions: true;
@@ -49,7 +52,11 @@ export function fingerprintExcludePatterns(settings: Settings): string[] {
   return patterns;
 }
 
-export function scriptRegistrations(settings: Settings): ScriptRegistration[] {
+/**
+ * `aliasesReady`: signed in with the aliases scope. The alias menu runs in Frame's isolated world, not the
+ * page's, and is only registered while it can do something.
+ */
+export function scriptRegistrations(settings: Settings, aliasesReady = false): ScriptRegistration[] {
   const scripts: ScriptRegistration[] = [];
   if (settings.sendGpc) {
     scripts.push({
@@ -75,6 +82,16 @@ export function scriptRegistrations(settings: Settings): ScriptRegistration[] {
       world: 'MAIN',
       allFrames: true,
       matchOriginAsFallback: true,
+      persistAcrossSessions: true,
+    });
+  }
+  if (aliasesReady && settings.aliasAutofill) {
+    scripts.push({
+      id: ALIAS_SCRIPT_ID,
+      js: [ALIAS_SCRIPT_FILE],
+      matches: [...PAGE_MATCHES],
+      runAt: 'document_idle',
+      allFrames: true,
       persistAcrossSessions: true,
     });
   }

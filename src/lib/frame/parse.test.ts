@@ -23,7 +23,7 @@ describe('Frame API parsing', () => {
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     expect(url.searchParams.get('code_challenge')).toBe(challenge);
     expect(url.searchParams.get('code_challenge')).toHaveLength(43);
-    expect(url.searchParams.get('scope')).toBe('account exposure');
+    expect(url.searchParams.get('scope')).toBe('account exposure aliases');
     expect(url.searchParams.get('client_id')).toBe(CHROME_EXTENSION_ID);
     expect(url.searchParams.get('redirect_uri')).toBe(CHROME_REDIRECT);
     expect(url.searchParams.has('client')).toBe(false);

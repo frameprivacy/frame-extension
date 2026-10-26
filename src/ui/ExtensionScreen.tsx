@@ -7,7 +7,9 @@ import { areaLabel, bandLabel, clampScore, scoreBand } from '../lib/score';
 import type { PublicAccount } from '../lib/messages';
 import { fingerprintEnabledForHost, trackersEnabledForHost } from '../lib/settings';
 import { SITE_ORIGINS } from '../lib/site-access';
+import { AliasPanel } from './AliasPanel';
 import { ScoreRing } from './ScoreRing';
+import { Switch } from './Switch';
 import { useExtensionState } from './useExtensionState';
 
 export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
@@ -93,6 +95,16 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
                 onReload={() => send({ type: 'frame.reload-tab' })}
               />
             ) : null}
+
+            <AliasPanel
+              variant={variant}
+              access={state.aliasAccess}
+              host={state.tab.host}
+              signingIn={state.signingIn}
+              autofill={state.settings.aliasAutofill}
+              onAutofill={(value) => void send({ type: 'frame.set-setting', id: 'aliasAutofill', value })}
+              onReconnect={() => void send({ type: 'frame.sign-in' })}
+            />
 
             <Protections
               state={state}
@@ -584,32 +596,6 @@ function PermissionList() {
         ))}
       </dl>
     </>
-  );
-}
-
-function Switch({
-  checked,
-  disabled,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  label: string;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="switch"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-    >
-      <span />
-    </button>
   );
 }
 

@@ -1,3 +1,5 @@
+import type { Alias, AliasList, AliasPatch } from '../aliases';
+
 export type FramePlan = 'free' | 'plus' | 'family';
 
 export interface TokenSet {
@@ -58,4 +60,17 @@ export interface FrameClient {
   revoke(token: string, clientId: string): Promise<void>;
   getAccount(accessToken: string): Promise<FrameAccount>;
   getExposure(accessToken: string): Promise<FrameExposure>;
+  listAliases(accessToken: string): Promise<AliasList>;
+  createAlias(accessToken: string, input: CreateAliasInput): Promise<Alias>;
+  getAlias(accessToken: string, id: string): Promise<Alias>;
+  updateAlias(accessToken: string, id: string, patch: AliasPatch): Promise<Alias>;
+  deleteAlias(accessToken: string, id: string): Promise<void>;
+  /** Records that an alias was used on `site`. The first call adds the site. Later calls bump its count. */
+  recordAliasUsage(accessToken: string, id: string, site: string): Promise<Alias>;
+}
+
+export interface CreateAliasInput {
+  label?: string | null;
+  /** Hostname of the tab the alias is for. */
+  site?: string | null;
 }

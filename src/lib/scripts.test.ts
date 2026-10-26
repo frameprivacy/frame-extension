@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSettings, setBooleanSetting, setFingerprintHost } from './settings';
-import { FINGERPRINT_SCRIPT_ID, GPC_SCRIPT_ID, scriptRegistrations, withoutOriginFallback } from './scripts';
+import { ALIAS_SCRIPT_ID, FINGERPRINT_SCRIPT_ID, GPC_SCRIPT_ID, scriptRegistrations, withoutOriginFallback } from './scripts';
 
 describe('page script registration', () => {
   it('covers every site when the defaults are on', () => {
@@ -31,5 +31,16 @@ describe('page script registration', () => {
     const scripts = withoutOriginFallback(scriptRegistrations(defaultSettings()));
     expect(scripts.every((script) => script.matchOriginAsFallback === undefined)).toBe(true);
     expect(scripts.map((script) => script.id)).toEqual([GPC_SCRIPT_ID, FINGERPRINT_SCRIPT_ID]);
+  });
+});
+
+describe('alias menu registration', () => {
+  it('registers only when aliases are ready and the setting is on', () => {
+    expect(scriptRegistrations(defaultSettings()).some((script) => script.id === ALIAS_SCRIPT_ID)).toBe(false);
+    const ready = scriptRegistrations(defaultSettings(), true).find((script) => script.id === ALIAS_SCRIPT_ID);
+    expect(ready).toMatchObject({ runAt: 'document_idle', matches: ['http://*/*', 'https://*/*'] });
+    expect(ready?.world).toBeUndefined();
+    const off = scriptRegistrations(setBooleanSetting(defaultSettings(), 'aliasAutofill', false), true);
+    expect(off.some((script) => script.id === ALIAS_SCRIPT_ID)).toBe(false);
   });
 });

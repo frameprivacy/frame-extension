@@ -31,10 +31,10 @@ Firefox will not load an add-on whose id is a bare hostname, and it will not put
 | `code_challenge` | 43 base64url characters, no padding, S256 |
 | `code_challenge_method` | `S256` |
 | `state` | 16–128 unreserved characters |
-| `scope` | `account exposure` |
+| `scope` | `account exposure aliases` |
 | `client` | `firefox`, Firefox builds only |
 
-`scope` may be omitted. Omitted means both `account` and `exposure`. The extension sends both.
+`scope` may be omitted. Omitted means both `account` and `exposure`. The extension sends all three. `aliases` is new in this version; a session from an earlier version does not have it, and the popup and options page offer *Allow aliases*, which signs in again with the new scope. The alias menu in email fields is registered only when the token response's `scope` includes `aliases`.
 
 `client` is omitted on Chrome. Firefox adds `client=firefox` so the site can tell a Firefox add-on from a Chrome extension before it looks at `Origin`.
 
@@ -85,7 +85,7 @@ Success:
   "token_type": "Bearer",
   "expires_in": 900,
   "refresh_token": "frx_...",
-  "scope": "account exposure"
+  "scope": "account exposure aliases"
 }
 ```
 
@@ -123,6 +123,34 @@ Both tokens must start with `frx_`. The extension refuses anything else, so a we
 
 `month` is `YYYY-MM`. `score` is null until something was checked. The extension shows null as “Not checked yet” and never fills in a number. The popup polls this at most every five minutes.
 
+## Email aliases
+
+All with `Authorization: Bearer` and the `aliases` scope, from the background script.
+
+| Request | Body | Response |
+| --- | --- | --- |
+| `GET /api/aliases` | | `{ aliases, destination, domain, available, max }` |
+| `POST /api/aliases` | `{ label?, site? }` | 201 `{ alias }` |
+| `GET /api/aliases/:id` | | `{ alias }` |
+| `PATCH /api/aliases/:id` | `{ enabled?, label? }` | `{ alias }` |
+| `DELETE /api/aliases/:id` | | `{ deleted: true, id }` |
+| `POST /api/aliases/:id/usages` | `{ site }` | `{ alias }` |
+
+An alias has `id`, `address`, `label`, `enabled`, `createdOrigin`, `usages` (`site`, `firstSeenAt`, `lastSeenAt`, `timesSeen`), `forwardedCount`, `lastForwardedAt`, `createdAt`, and `updatedAt`. `site` is the lowercased hostname without `www.`. It always comes from the tab the request was made for, never from the page.
+
+The content script in email fields can only ask the background to list enabled aliases (address and label only), make an alias for its own tab's site, and record that an alias was used on its own tab's site. It cannot rename, pause, or delete. Only Frame's popup and options page can.
+
+| Status | `error` | Extension |
+| --- | --- | --- |
+| 400 | `INVALID` | “Frame didn’t accept that. Labels can be up to 80 characters.” |
+| 403 | `insufficient_scope` | Offers *Allow aliases*. Session kept. |
+| 403 | `EMAIL_UNVERIFIED` | Asks you to verify your Frame account email. |
+| 403 | `ACCOUNT_READ_ONLY` | Says the account is scheduled for deletion. |
+| 404 | `NOT_FOUND` | “That alias no longer exists.” |
+| 409 | `ALIAS_LIMIT` | Says the 100 alias limit is reached. |
+| 429 | `RATE_LIMITED` | Names the 30 a day or 300 changes an hour limit, with the `Retry-After` wait. |
+| 503 | `ALIASES_UNAVAILABLE`, `ALIAS_RETRY` | Says aliases are unavailable, or to try again in a minute. |
+
 ## Errors
 
 The body is `error` and `error_description`.
@@ -144,17 +172,17 @@ The extension has a host permission for `https://frameprivacy.com/*`. Every Fram
 
 Chrome extension fetches send `Origin: chrome-extension://<chrome id>`. The site allows that origin. Chrome does not send a `client` field.
 
-Firefox sends `Origin: moz-extension://<per-install uuid>` on its API fetches. That uuid is different on every install, so it cannot be registered in advance. Firefox cannot omit `Origin` on a CORS request. The site should allow any `moz-extension://` origin for the Firefox client on `/api/extension/token`, `/revoke`, `/account`, and `/exposure`.
+Firefox sends `Origin: moz-extension://<per-install uuid>` on its API fetches. That uuid is different on every install, so it cannot be registered in advance. Firefox cannot omit `Origin` on a CORS request. The site should allow any `moz-extension://` origin for the Firefox client on `/api/extension/token`, `/revoke`, `/account`, `/exposure`, and `/api/aliases`.
 
 Firefox builds identify themselves with `client=firefox`:
 
 - query parameter on `GET /connect`
 - JSON field on `POST /api/extension/token` (both grant types) and `POST /api/extension/revoke`
 
-Account and exposure stay Bearer-only. Match those by the token, and still allow the `moz-extension://` origin. The redirect URI and `client_id` stay `https://86d25b817a984dadbf12ae6ae90c87df43543c41.extensions.allizom.org/` and `86d25b817a984dadbf12ae6ae90c87df43543c41`. The manifest add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`.
+Account, exposure, and aliases stay Bearer-only. Match those by the token, and still allow the `moz-extension://` origin. The redirect URI and `client_id` stay `https://86d25b817a984dadbf12ae6ae90c87df43543c41.extensions.allizom.org/` and `86d25b817a984dadbf12ae6ae90c87df43543c41`. The manifest add-on id is `{f4a0e6c1-8b27-4d53-9e14-6c2b7a91d0e5}`.
 
 A stub build, including on Firefox, still signs in to the preview account and does not call the site.
 
-Requests are made from the background script. The popup only receives the account and exposure summary, not the tokens.
+Requests are made from the background script. The popup only receives the account and exposure summary and the alias list, not the tokens.
 
 Tokens live in `chrome.storage.local`. Sites cannot read that storage. It is not the OS keychain.
