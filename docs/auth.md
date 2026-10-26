@@ -186,7 +186,7 @@ Account, exposure, and aliases stay Bearer-only. Match those by the token, and s
 
 Safari has no `identity` API, so there is no `launchWebAuthFlow` and no browser-owned redirect host. The Safari build opens `/connect` in a normal tab and watches that tab for an `https` return page on frameprivacy.com. Details and what Safari supports are in [safari.md](safari.md).
 
-Sign-in is **off** in the Safari build (`SAFARI_SIGN_IN_READY = false` in `src/lib/extension-ids.ts`). The button is hidden and the popup says sign-in isn't available in Safari yet, so nobody is sent to a page that refuses them. Turn it on only after the site does all of this:
+Sign-in is **on** in the Safari build (`SAFARI_SIGN_IN_READY = true` in `src/lib/extension-ids.ts`). frameprivacy.com does all of the following; keep it that way, or set the flag back to `false` to hide the button:
 
 1. **Client.** Allow `client_id=com.frameprivacy.safari.extension` (the extension's bundle id; it is not derived from a redirect host) together with `client=safari`.
 2. **Redirect URI.** Allow exactly `https://frameprivacy.com/connect/safari` for that client, nothing under it and no other host. After consent, `/connect` sends the tab there with an ordinary HTTP redirect: `https://frameprivacy.com/connect/safari?code=frc_...&state=...`, or `?error=access_denied&state=...` on cancel.
