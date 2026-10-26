@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHROME_EXTENSION_ID, FIREFOX_CLIENT_ID } from '../extension-ids';
+import { CHROME_EXTENSION_ID, FIREFOX_CLIENT_ID, SAFARI_CLIENT_ID, SAFARI_REDIRECT_URI } from '../extension-ids';
 import { parseStoredSession, toPublicAccount, withToken } from '../session';
 import { endsSession, FrameApiError, messageForApiError, SIGN_IN_UNAVAILABLE } from './errors';
 import { FRAME_ORIGIN, buildAuthorizeUrl, parseAccount, parseExposure, parseTokenResponse, readJson } from './parse';
@@ -44,6 +44,21 @@ describe('Frame API parsing', () => {
     expect(url.searchParams.get('client_id')).toBe(FIREFOX_CLIENT_ID);
     expect(url.searchParams.get('redirect_uri')).toBe(redirect);
     expect(url.searchParams.get('response_type')).toBe('code');
+  });
+
+  it('adds client=safari on the Safari authorize URL', () => {
+    const url = new URL(
+      buildAuthorizeUrl({
+        redirectUri: SAFARI_REDIRECT_URI,
+        state: 'state-value-ok-1',
+        codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+        clientId: SAFARI_CLIENT_ID,
+        client: 'safari',
+      }),
+    );
+    expect(url.searchParams.get('client')).toBe('safari');
+    expect(url.searchParams.get('client_id')).toBe(SAFARI_CLIENT_ID);
+    expect(url.searchParams.get('redirect_uri')).toBe(SAFARI_REDIRECT_URI);
   });
 
   it('reads a 15-minute token, account, and exposure', () => {

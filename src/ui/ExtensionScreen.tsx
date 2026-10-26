@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { TOGGLES, PERMISSIONS } from '../lib/catalog';
+import { TOGGLES, permissionsFor } from '../lib/catalog';
+import { signInReturnOrigin } from '../lib/auth';
+import { SAFARI_REDIRECT_URI } from '../lib/extension-ids';
+import type { BrowserTarget } from '../lib/platform';
 import { controlDisabled, controlNote } from '../lib/control';
 import type { FrameExposure } from '../lib/frame/types';
 import { areaLabel, bandLabel, clampScore, scoreBand } from '../lib/score';
@@ -15,17 +18,29 @@ import { useExtensionState } from './useExtensionState';
 export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
   const { state, error, send, refresh } = useExtensionState();
   const options = variant === 'options';
+  const signIn = () => {
+    // Safari only shows Frame the return page's address on a site it's allowed on.
+    // permissions.request must run straight from the click, so it's asked here.
+    if (state?.browser === 'safari' && browser.permissions?.request) {
+      void browser.permissions
+        .request({ origins: [signInReturnOrigin(SAFARI_REDIRECT_URI)] })
+        .catch(() => false)
+        .then(() => send({ type: 'frame.sign-in' }));
+      return;
+    }
+    void send({ type: 'frame.sign-in' });
+  };
 
   return (
     <div className="shell">
       <div className={options ? 'options-body' : 'popup-body'}>
         <header className="header">
           <img className="mark" src="/wordmark.svg" alt="Frame" />
-          {state ? (
+          {state && (state.signInAvailable || state.account !== null) ? (
             <AccountButton
               signedIn={state.account !== null}
               signingIn={state.signingIn}
-              onSignIn={() => void send({ type: 'frame.sign-in' })}
+              onSignIn={signIn}
               onSignOut={() => void send({ type: 'frame.sign-out' })}
             />
           ) : null}
@@ -54,8 +69,8 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
           error ? null : <LoadingState />
         ) : (
           <>
-            {state.siteAccess === false ? <SiteAccessCard onGranted={() => void refresh()} /> : null}
-            {state.account ? <ScoreCard account={state.account} /> : <SignedOutCard />}
+            {state.siteAccess === false ? <SiteAccessCard browser={state.browser} onGranted={() => void refresh()} /> : null}
+            {state.account ? <ScoreCard account={state.account} /> : <SignedOutCard signInAvailable={state.signInAvailable} />}
             {state.authError ? (
               <p className="error" role="alert">
                 {state.authError}
@@ -101,9 +116,10 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
               access={state.aliasAccess}
               host={state.tab.host}
               signingIn={state.signingIn}
+              signInAvailable={state.signInAvailable}
               autofill={state.settings.aliasAutofill}
               onAutofill={(value) => void send({ type: 'frame.set-setting', id: 'aliasAutofill', value })}
-              onReconnect={() => void send({ type: 'frame.sign-in' })}
+              onReconnect={signIn}
             />
 
             <Protections
@@ -119,7 +135,7 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
                 onClearTracker={(host) => void send({ type: 'frame.clear-tracker-host', host })}
               />
             ) : null}
-            {options ? <PermissionList /> : null}
+            {options ? <PermissionList browser={state.browser} signInAvailable={state.signInAvailable} /> : null}
 
             <footer className="footer">
               <p>Frame does not make you anonymous, and it does not replace a VPN or a breach check.</p>
@@ -176,7 +192,7 @@ function LoadingState() {
   );
 }
 
-function SignedOutCard() {
+function SignedOutCard({ signInAvailable }: { signInAvailable: boolean }) {
   return (
     <section className="panel score-panel" aria-labelledby="score-title">
       <div className="score-top">
@@ -186,7 +202,9 @@ function SignedOutCard() {
             Privacy Score
           </h2>
           <p className="hint">
-            Sign in to see the score from your Frame account. Optional: the protections below work without one.
+            {signInAvailable
+              ? 'Sign in to see the score from your Frame account. Optional: the protections below work without one.'
+              : 'Frame account sign-in isn’t available in Safari yet. Every protection below works without an account.'}
           </p>
         </div>
       </div>
@@ -267,14 +285,19 @@ function Protections({
             <span>Not offered by this browser</span>
             <span className="count">{missing.length}</span>
           </summary>
-          <p className="hint unavailable-hint">
-            This browser has no setting an extension can change for these, so Frame leaves them alone.
-          </p>
+          <p className="hint unavailable-hint">{unavailableHint(state.browser)}</p>
           <div className="rows">{missing.map(row)}</div>
         </details>
       ) : null}
     </>
   );
+}
+
+function unavailableHint(target: BrowserTarget): string {
+  if (target === 'safari') {
+    return 'Safari gives extensions no privacy settings and no way to change response headers, so Frame leaves these alone. Safari has its own: Prevent cross-site tracking and Hide IP address, in Safari’s Privacy settings.';
+  }
+  return 'This browser has no setting an extension can change for these, so Frame leaves them alone.';
 }
 
 function ExposureMeta({ exposure }: { exposure: FrameExposure | null }) {
@@ -492,17 +515,26 @@ function SiteCard({
   );
 }
 
-function SiteAccessCard({ onGranted }: { onGranted: () => void }) {
+function SiteAccessCard({ browser: target, onGranted }: { browser: BrowserTarget; onGranted: () => void }) {
   const [failed, setFailed] = useState(false);
+  const safari = target === 'safari';
   return (
     <section className="panel access-panel" aria-labelledby="access-title">
       <h2 className="host-sub" id="access-title">
-        Frame can’t reach websites
+        {safari ? 'Frame isn’t allowed on every website' : 'Frame can’t reach websites'}
       </h2>
-      <p className="hint">
-        Website access for Frame is off in this browser, so Global Privacy Control, clean tracking links, referrer
-        trimming, and fingerprinting protection aren’t running. Frame doesn’t read or send page content.
-      </p>
+      {safari ? (
+        <p className="hint">
+          Safari asks site by site. Global Privacy Control, clean tracking links, and fingerprinting protection only run
+          on websites you’ve allowed. To allow all of them: on Mac, Safari › Settings › Extensions › Frame; on iPhone and
+          iPad, Settings › Apps › Safari › Extensions › Frame. Frame doesn’t read or send page content.
+        </p>
+      ) : (
+        <p className="hint">
+          Website access for Frame is off in this browser, so Global Privacy Control, clean tracking links, referrer
+          trimming, and fingerprinting protection aren’t running. Frame doesn’t read or send page content.
+        </p>
+      )}
       <button
         type="button"
         className="btn access-btn"
@@ -517,11 +549,13 @@ function SiteAccessCard({ onGranted }: { onGranted: () => void }) {
             .catch(() => setFailed(true));
         }}
       >
-        Allow website access
+        {safari ? 'Allow on all websites' : 'Allow website access'}
       </button>
       {failed ? (
         <p className="error" role="alert">
-          Access wasn’t granted. You can also turn it on from this add-on’s page in the browser’s add-on settings.
+          {safari
+            ? 'Access wasn’t granted. You can also allow Frame in Safari’s Extensions settings.'
+            : 'Access wasn’t granted. You can also turn it on from this add-on’s page in the browser’s add-on settings.'}
         </p>
       ) : null}
     </section>
@@ -583,12 +617,12 @@ function Exceptions({
   );
 }
 
-function PermissionList() {
+function PermissionList({ browser: target, signInAvailable }: { browser: BrowserTarget; signInAvailable: boolean }) {
   return (
     <>
       <p className="label">Permissions</p>
       <dl className="permissions panel">
-        {PERMISSIONS.map((permission) => (
+        {permissionsFor(target, signInAvailable).map((permission) => (
           <div key={permission.name}>
             <dt>{permission.name}</dt>
             <dd>{permission.why}</dd>

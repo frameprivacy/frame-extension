@@ -19,7 +19,7 @@ Signing out revokes the token on frameprivacy.com and deletes the stored session
 
 ## What is sent, and only when you sign in
 
-Signing in is optional. When you choose **Sign in**, the browser opens `https://frameprivacy.com/connect` with a PKCE code flow (`identity.launchWebAuthFlow`). You type your password on frameprivacy.com, never into the extension. After that, the extension calls only these Frame endpoints, from its background script, without the website's cookies:
+Signing in is optional. When you choose **Sign in**, the browser opens `https://frameprivacy.com/connect` with a PKCE code flow (`identity.launchWebAuthFlow`). Safari has no such API; once Safari sign-in is available, the Safari build opens the same page in a normal tab, asks Safari for access to frameprivacy.com so it can see that tab return, and closes it after sign-in. Sign-in is not offered in Safari yet. You type your password on frameprivacy.com, never into the extension. After that, the extension calls only these Frame endpoints, from its background script, without the website's cookies:
 
 | Endpoint | Why |
 | --- | --- |
@@ -40,7 +40,11 @@ The fingerprinting normalizer and the Global Privacy Control flag run inside the
 
 The email alias menu is added only when you are signed in, have allowed aliases, and leave *Offer aliases in email fields* on. It looks at the attributes of the field you focus (type, name, id, autocomplete, placeholder, label) to decide whether it is an email field. It does not read what you type, other fields, or the page. It draws its button in a closed shadow root so the page cannot read your aliases. A page can still tell that the button element is there while an email field is focused. An alias is typed into the field only when you choose one.
 
-**Forget this site** uses the `cookies` permission only to find which subdomains have cookies, so it can clear them too. Cookie values are not saved or sent.
+**Forget this site** uses the `cookies` permission only to find which subdomains have cookies, so it can clear them too. Cookie values are not saved or sent. Safari has no `browsingData` API, so on Safari Frame removes the site's cookies through the `cookies` API itself, and runs a short script in the site's open tabs that clears that site's own storage. Nothing is read out or sent.
+
+## Safari
+
+The Safari app is only a container for the extension. It collects nothing, makes no network requests, and has no account. The extension behaves as described above, with fewer protections, because Safari offers extensions fewer APIs (see [docs/safari.md](docs/safari.md)).
 
 ## Permissions
 

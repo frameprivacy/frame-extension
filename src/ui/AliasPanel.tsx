@@ -10,13 +10,14 @@ interface Props {
   access: AliasAccess;
   host: string | null;
   signingIn: boolean;
+  signInAvailable: boolean;
   autofill: boolean;
   onAutofill: (value: boolean) => void;
   onReconnect: () => void;
 }
 
 /** Email aliases: make one, copy it, rename it, turn it off, delete it, and see which sites it was used on. */
-export function AliasPanel({ variant, access, host, signingIn, autofill, onAutofill, onReconnect }: Props) {
+export function AliasPanel({ variant, access, host, signingIn, signInAvailable, autofill, onAutofill, onReconnect }: Props) {
   const options = variant === 'options';
   const aliases = useAliases(access);
   const [creating, setCreating] = useState(false);
@@ -36,8 +37,9 @@ export function AliasPanel({ variant, access, host, signingIn, autofill, onAutof
       <>
         <p className="label" id="aliases">Email aliases</p>
         <p className="empty panel">
-          Sign in to make Frame email aliases: a different address for each site, forwarded to your inbox. You can turn
-          one off when it gets spam.
+          {signInAvailable
+            ? 'Sign in to make Frame email aliases: a different address for each site, forwarded to your inbox. You can turn one off when it gets spam.'
+            : 'Frame email aliases need a Frame account, and sign-in isn’t available in Safari yet.'}
         </p>
       </>
     );

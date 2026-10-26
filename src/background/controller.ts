@@ -1,5 +1,18 @@
 import { browser } from 'wxt/browser';
-import { clientIdFromRedirect, codeChallenge, createVerifier, isTokenExpired, parseAuthRedirect, randomState, signInClient } from '../lib/auth';
+import {
+  clientIdFromRedirect,
+  codeChallenge,
+  createVerifier,
+  isTokenExpired,
+  parseAuthRedirect,
+  randomState,
+  signInAvailable,
+  signInClient,
+  signInMethod,
+  type PendingSignIn,
+} from '../lib/auth';
+import { SAFARI_CLIENT_ID, SAFARI_REDIRECT_URI, SAFARI_SIGN_IN_READY } from '../lib/extension-ids';
+import { browserTarget } from '../lib/platform';
 import { aggregateControls } from '../lib/control';
 import { createFrameClient } from '../lib/frame/create-client';
 import { endsSession, FrameApiError, SESSION_ENDED } from '../lib/frame/errors';
@@ -35,9 +48,15 @@ import { clearSession, loadSession, loadSettings, saveSession, saveSettings } fr
 import { hasSiteAccess } from './site-access';
 import { siteAccessControls } from '../lib/site-access';
 import { hasAliasScope } from '../lib/aliases';
+import { canReadReturnPage, clearPendingSignIn, startTabSignIn, watchTabSignIn } from './tab-sign-in';
 import { handleAliasMessage } from './aliases';
 
 const client = createFrameClient();
+const target = browserTarget(import.meta.env.BROWSER);
+const canSignIn = signInAvailable(target, SAFARI_SIGN_IN_READY);
+export const SAFARI_SIGN_IN_UNAVAILABLE = 'Sign-in isn’t available in Safari yet. Every protection works without an account.';
+export const SAFARI_NEEDS_SITE_ACCESS =
+  'Allow Frame on frameprivacy.com so Safari lets it finish sign-in, then try again.';
 const EXPOSURE_TTL_MS = 5 * 60 * 1000;
 
 let controls: UiState['controls'] = {};
@@ -95,6 +114,13 @@ export function startBackground(): void {
   };
   browser.permissions?.onAdded?.addListener(reapply);
   browser.permissions?.onRemoved?.addListener(reapply);
+  // Safari signs in through a normal tab; this finishes it, even after the worker was suspended.
+  if (signInMethod(target) === 'tab' && canSignIn) {
+    watchTabSignIn(async (returnedUrl, pending) => {
+      authError = await completeSignIn(returnedUrl, pending);
+      await enqueue(applyCurrent);
+    });
+  }
   void enqueue(applyCurrent);
 }
 
@@ -209,12 +235,18 @@ async function clearHost(host: unknown): Promise<UiState> {
 
 async function signIn(): Promise<UiState> {
   if (signingIn) return enqueue(async () => uiState(await loadSettings(), await loadSession()));
+  if (!canSignIn) {
+    authError = SAFARI_SIGN_IN_UNAVAILABLE;
+    return enqueue(async () => uiState(await loadSettings(), await loadSession()));
+  }
   signingIn = true;
   authError = null;
   try {
     if (client.mode === 'stub') {
       await enqueue(() => saveSession(createPreviewSession()));
       exposureFetchedAt = Date.now();
+    } else if (signInMethod(target) === 'tab') {
+      authError = await tabSignIn();
     } else {
       authError = await liveSignIn();
     }
@@ -252,14 +284,49 @@ async function liveSignIn(): Promise<string | null> {
     return 'Sign-in was cancelled.';
   }
   if (!returned) return 'Sign-in was cancelled.';
-  const parsed = parseAuthRedirect(returned, state);
+  return completeSignIn(returned, { state, verifier, redirectUri, clientId });
+}
+
+/**
+ * Safari: opens frameprivacy.com in a tab. The tab watcher finishes sign-in
+ * when the tab reaches the return page, after this popup has closed.
+ */
+async function tabSignIn(): Promise<string | null> {
+  if (!(await canReadReturnPage(SAFARI_REDIRECT_URI))) return SAFARI_NEEDS_SITE_ACCESS;
+  const verifier = createVerifier();
+  const state = randomState();
+  const challenge = await codeChallenge(verifier);
+  try {
+    await startTabSignIn({
+      authorizeUrl: buildAuthorizeUrl({
+        redirectUri: SAFARI_REDIRECT_URI,
+        state,
+        codeChallenge: challenge,
+        clientId: SAFARI_CLIENT_ID,
+        client: signInClient(target),
+      }),
+      pending: { state, verifier, redirectUri: SAFARI_REDIRECT_URI, clientId: SAFARI_CLIENT_ID },
+    });
+  } catch {
+    await clearPendingSignIn();
+    return 'Frame could not open the sign-in page.';
+  }
+  return null;
+}
+
+/** Exchanges the returned code and saves the session. Shared by both sign-in methods. */
+async function completeSignIn(
+  returned: string,
+  pending: Pick<PendingSignIn, 'state' | 'verifier' | 'redirectUri' | 'clientId'>,
+): Promise<string | null> {
+  const parsed = parseAuthRedirect(returned, pending.state);
   if (!parsed.ok) return parsed.message;
   try {
     const token = await client.exchangeCode({
       code: parsed.code,
-      codeVerifier: verifier,
-      redirectUri,
-      clientId,
+      codeVerifier: pending.verifier,
+      redirectUri: pending.redirectUri,
+      clientId: pending.clientId,
     });
     const account = await client.getAccount(token.accessToken);
     let exposure: FrameExposure | null = null;
@@ -312,12 +379,17 @@ async function applyAll(settings: Settings): Promise<void> {
   const scripts = await applyPageScripts(settings, aliasesReady);
   controls = {
     ...privacy,
-    ...siteAccessControls(siteAccess, settings, {
+    ...siteAccessControls(
+      siteAccess,
+      settings,
+      {
       sendGpc: aggregateControls([headers.sendGpc, scripts.sendGpc]),
       trimReferrers: headers.trimReferrers,
       fingerprintProtection: scripts.fingerprintProtection,
-      stripTrackers: headers.stripTrackers,
-    }),
+        stripTrackers: headers.stripTrackers,
+      },
+      target,
+    ),
   };
   const failed = [
     headers.sendGpc,
@@ -377,6 +449,8 @@ async function uiState(settings: Settings, session: StoredSession | null): Promi
     authError,
     signingIn,
     siteAccess,
+    browser: target,
+    signInAvailable: canSignIn,
     tab: await currentTab(),
     siteNotice,
     aliasAccess: aliasAccess(session),

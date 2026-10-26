@@ -14,6 +14,8 @@ function state(): UiState {
     tab: { host: 'example.com', restricted: false },
     siteNotice: null,
     aliasAccess: 'signed-out',
+  browser: 'chrome',
+  signInAvailable: true,
   };
 }
 

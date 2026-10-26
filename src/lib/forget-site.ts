@@ -59,3 +59,47 @@ export function forgetTarget(page: PageTarget, cookieDomains: readonly string[])
     truncated,
   };
 }
+
+/** The parts of a `cookies.Cookie` needed to find and remove it. */
+export interface CookieRef {
+  name: string;
+  domain: string;
+  path: string;
+  secure: boolean;
+  storeId?: string;
+}
+
+/**
+ * Cookies to remove when a browser has no `browsingData` (Safari): every cookie
+ * the open site can read (its own, and ones set for a parent domain such as
+ * `.example.com`), plus cookies of the subdomains in `hostnames`.
+ */
+export function cookiesToForget<T extends CookieRef>(cookies: readonly T[], page: string, hostnames: readonly string[]): T[] {
+  const hosts = new Set(hostnames);
+  return cookies.filter((cookie) => {
+    const domain = normalizeHost(cookie.domain.replace(/^\./, ''));
+    if (!domain) return false;
+    if (hosts.has(domain)) return true;
+    // A parent-domain cookie is sent to the open site too. Single-label parents (`com`) never match.
+    return domain.includes('.') && page.endsWith(`.${domain}`);
+  });
+}
+
+/** The URL `cookies.remove` needs to address one cookie. */
+export function cookieUrl(cookie: CookieRef): string {
+  const host = cookie.domain.replace(/^\./, '');
+  const literal = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
+  const path = cookie.path.startsWith('/') ? cookie.path : '/';
+  return `${cookie.secure ? 'https' : 'http'}://${literal}${path}`;
+}
+
+/** The result line for a clear done with cookies and open tabs only (Safari). */
+export function cookieClearMessage(host: string, tabsCleared: number, failed: number): string {
+  const storage = tabsCleared > 0 ? ' and its storage in open tabs' : '';
+  const missed = failed > 0 ? ` ${failed} ${failed === 1 ? 'cookie' : 'cookies'} couldn’t be removed.` : '';
+  const limit =
+    tabsCleared > 0
+      ? 'Safari doesn’t let extensions clear the cache, or storage for tabs that aren’t open.'
+      : 'Safari doesn’t let extensions clear the cache, or storage unless the site is open in a tab.';
+  return `Cleared cookies for ${host}${storage}.${missed} ${limit}`;
+}

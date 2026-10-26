@@ -1,6 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { clientIdFromRedirect, codeChallenge, createVerifier, expiresAtFromSeconds, isTokenExpired, parseAuthRedirect, randomState, signInClient } from './auth';
-import { CHROME_EXTENSION_ID, FIREFOX_ADDON_ID, FIREFOX_CLIENT_ID } from './extension-ids';
+import {
+  TAB_SIGN_IN_TTL_MS,
+  clientIdFromRedirect,
+  codeChallenge,
+  createVerifier,
+  expiresAtFromSeconds,
+  isReturnFor,
+  isSignInReturn,
+  isTokenExpired,
+  parseAuthRedirect,
+  randomState,
+  readPendingSignIn,
+  signInAvailable,
+  signInClient,
+  signInMethod,
+  signInReturnOrigin,
+  type PendingSignIn,
+} from './auth';
+import {
+  CHROME_EXTENSION_ID,
+  FIREFOX_ADDON_ID,
+  FIREFOX_CLIENT_ID,
+  SAFARI_CLIENT_ID,
+  SAFARI_EXTENSION_BUNDLE_ID,
+  SAFARI_REDIRECT_URI,
+} from './extension-ids';
 
 describe('sign-in helpers', () => {
   it('builds an unpadded S256 challenge from the RFC 7636 vector', async () => {
@@ -38,9 +62,11 @@ describe('sign-in helpers', () => {
     expect(await sha1('identity@mozilla.org')).toBe('35b64b676900f491c00e7f618d43f7040e88422e');
   });
 
-  it('sends a firefox client hint only from Firefox', () => {
+  it('sends a client hint from Firefox and Safari, never from Chrome', () => {
     expect(signInClient('firefox')).toBe('firefox');
+    expect(signInClient('safari')).toBe('safari');
     expect(signInClient('chrome')).toBeNull();
+    expect(signInClient('edge')).toBeNull();
     expect(signInClient('')).toBeNull();
   });
 
@@ -68,3 +94,64 @@ async function sha1(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+
+describe('Safari sign-in', () => {
+  const pending: PendingSignIn = {
+    state: 'state-value-ok-1',
+    verifier: 'verifier-value',
+    redirectUri: SAFARI_REDIRECT_URI,
+    clientId: SAFARI_CLIENT_ID,
+    tabId: 7,
+    startedAt: 1_000_000,
+  };
+
+  it('signs in through a tab on Safari and identity everywhere else', () => {
+    expect(signInMethod('safari')).toBe('tab');
+    expect(signInMethod('chrome')).toBe('identity');
+    expect(signInMethod('firefox')).toBe('identity');
+  });
+
+  it('offers Safari sign-in only once the site is ready', () => {
+    expect(signInAvailable('safari', false)).toBe(false);
+    expect(signInAvailable('safari', true)).toBe(true);
+    expect(signInAvailable('chrome', false)).toBe(true);
+    expect(signInAvailable('firefox', false)).toBe(true);
+  });
+
+  it('uses the extension bundle id as the client id and an https return page', () => {
+    expect(SAFARI_CLIENT_ID).toBe(SAFARI_EXTENSION_BUNDLE_ID);
+    expect(new URL(SAFARI_REDIRECT_URI).protocol).toBe('https:');
+    expect(signInReturnOrigin(SAFARI_REDIRECT_URI)).toBe('https://frameprivacy.com/*');
+  });
+
+  it('recognises only the exact return page with a result', () => {
+    const base = SAFARI_REDIRECT_URI;
+    expect(isSignInReturn(`${base}?code=frc_1&state=s`, base)).toBe(true);
+    expect(isSignInReturn(`${base}?error=access_denied&state=s`, base)).toBe(true);
+    expect(isSignInReturn(`${base}?code=frc_1`, base)).toBe(false);
+    expect(isSignInReturn(`${base}?state=s`, base)).toBe(false);
+    expect(isSignInReturn(`${base}/extra?code=frc_1&state=s`, base)).toBe(false);
+    expect(isSignInReturn('https://frameprivacy.com.evil.test/connect/safari?code=a&state=s', base)).toBe(false);
+    expect(isSignInReturn('http://frameprivacy.com/connect/safari?code=a&state=s', base)).toBe(false);
+    expect(isSignInReturn(undefined, base)).toBe(false);
+    expect(isSignInReturn('', base)).toBe(false);
+    expect(isSignInReturn('not a url', base)).toBe(false);
+  });
+
+  it('matches a return to the sign-in that started it', () => {
+    expect(isReturnFor(`${SAFARI_REDIRECT_URI}?code=frc_1&state=${pending.state}`, pending)).toBe(true);
+    expect(isReturnFor(`${SAFARI_REDIRECT_URI}?code=frc_1&state=someone-else`, pending)).toBe(false);
+  });
+
+  it('reads a stored pending sign-in and drops stale or malformed ones', () => {
+    const now = pending.startedAt + 1_000;
+    expect(readPendingSignIn(pending, now)).toEqual(pending);
+    expect(readPendingSignIn({ ...pending, tabId: null }, now)).toEqual({ ...pending, tabId: null });
+    expect(readPendingSignIn(pending, pending.startedAt + TAB_SIGN_IN_TTL_MS + 1)).toBeNull();
+    expect(readPendingSignIn({ ...pending, startedAt: now + 5_000 }, now)).toBeNull();
+    expect(readPendingSignIn({ ...pending, state: '' }, now)).toBeNull();
+    expect(readPendingSignIn({ ...pending, verifier: 3 }, now)).toBeNull();
+    expect(readPendingSignIn(null, now)).toBeNull();
+    expect(readPendingSignIn('pending', now)).toBeNull();
+  });
+});

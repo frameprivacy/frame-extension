@@ -21,10 +21,13 @@ npm run typecheck
 npm test
 npm run build
 npm run build:firefox
+npm run build:safari
 npx web-ext lint -s .output/firefox-mv3
 ```
 
-CI runs the first five on every push and pull request.
+CI runs all but the last on every push and pull request. Safari's final steps (Xcode, signing, App Store) need a Mac; see [docs/safari.md](docs/safari.md).
+
+When a feature uses a browser API, check it exists in Safari (MDN's compatibility tables list Safari and Safari on iOS). If it doesn't, feature-detect it and show the protection as not offered, with the reason, rather than leaving a switch that does nothing.
 
 ## Ground rules
 
@@ -41,3 +44,7 @@ CI runs the first five on every push and pull request.
 3. `npx web-ext lint -s .output/firefox-mv3`
 4. `npx web-ext build -s .output/firefox-mv3 -a .output/web-ext` for the upload zip, and `npx wxt zip -b firefox` for the sources zip Mozilla asks for.
 5. Upload both on the [Mozilla Add-ons developer hub](https://addons.mozilla.org/developers/addon/frame-privacy/versions).
+
+## Releasing a Safari version
+
+On a Mac: `npm ci && npm run build:safari`, rebuild in Xcode (or `npm run safari:xcode` the first time), set the app's version to `package.json`'s and bump the build number, then archive and upload both macOS and iOS. Steps are in [docs/safari.md](docs/safari.md#app-store).

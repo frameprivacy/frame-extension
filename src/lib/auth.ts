@@ -67,13 +67,94 @@ export function clientIdFromRedirect(redirectUri: string): string | null {
   return host.match(CHROME_HOST)?.[1] ?? host.match(FIREFOX_HOST)?.[1] ?? null;
 }
 
+export type SignInClient = 'firefox' | 'safari';
+
 /**
- * Firefox fetches send Origin: moz-extension://<per-install uuid>.
- * The site cannot allowlist that uuid. Firefox builds send this hint
- * on the authorize URL and on token and revoke bodies. Chrome omits it.
+ * Firefox fetches send Origin: moz-extension://<per-install uuid>, and Safari
+ * sends safari-web-extension://<per-install uuid>. The site cannot allowlist
+ * those uuids. Firefox and Safari builds send this hint on the authorize URL
+ * and on token and revoke bodies. Chrome omits it.
  */
-export function signInClient(browserName: string): 'firefox' | null {
-  return browserName === 'firefox' ? 'firefox' : null;
+export function signInClient(browserName: string): SignInClient | null {
+  if (browserName === 'firefox') return 'firefox';
+  if (browserName === 'safari') return 'safari';
+  return null;
+}
+
+/**
+ * Chrome and Firefox sign in with `identity.launchWebAuthFlow`. Safari has no
+ * `identity` API, so it opens frameprivacy.com in a normal tab and watches that
+ * tab for the redirect page.
+ */
+export function signInMethod(browserName: string): 'identity' | 'tab' {
+  return browserName === 'safari' ? 'tab' : 'identity';
+}
+
+/** Whether this build offers Frame sign-in. Safari waits until the site allows it. */
+export function signInAvailable(browserName: string, safariReady: boolean): boolean {
+  return browserName === 'safari' ? safariReady : true;
+}
+
+/**
+ * True when a tab has landed on the sign-in redirect page with a result.
+ * Origin and path must match exactly, so a look-alike host or a longer path
+ * never counts. `state` is still checked afterwards by parseAuthRedirect.
+ */
+export function isSignInReturn(tabUrl: string | undefined, redirectUri: string): boolean {
+  if (!tabUrl) return false;
+  let url: URL;
+  let expected: URL;
+  try {
+    url = new URL(tabUrl);
+    expected = new URL(redirectUri);
+  } catch {
+    return false;
+  }
+  if (url.origin !== expected.origin || url.pathname !== expected.pathname) return false;
+  return url.searchParams.has('state') && (url.searchParams.has('code') || url.searchParams.has('error'));
+}
+
+/** How long a tab sign-in (Safari) may take before it's dropped. */
+export const TAB_SIGN_IN_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * A tab sign-in in progress. It lives in extension storage, not memory, because
+ * Safari can suspend the background worker while someone is signing in.
+ */
+export interface PendingSignIn {
+  state: string;
+  verifier: string;
+  redirectUri: string;
+  clientId: string;
+  tabId: number | null;
+  startedAt: number;
+}
+
+/** Reads a stored pending sign-in, or null when it's malformed or older than the TTL. */
+export function readPendingSignIn(value: unknown, now = Date.now()): PendingSignIn | null {
+  if (!value || typeof value !== 'object') return null;
+  const item = value as Record<string, unknown>;
+  const text = (key: string) => (typeof item[key] === 'string' && item[key] !== '' ? (item[key] as string) : null);
+  const state = text('state');
+  const verifier = text('verifier');
+  const redirectUri = text('redirectUri');
+  const clientId = text('clientId');
+  const startedAt = typeof item.startedAt === 'number' && Number.isFinite(item.startedAt) ? item.startedAt : null;
+  const tabId = typeof item.tabId === 'number' && Number.isInteger(item.tabId) ? item.tabId : null;
+  if (!state || !verifier || !redirectUri || !clientId || startedAt === null) return null;
+  if (startedAt > now || now - startedAt > TAB_SIGN_IN_TTL_MS) return null;
+  return { state, verifier, redirectUri, clientId, tabId, startedAt };
+}
+
+/** True when a tab has landed on the sign-in return page for this exact sign-in (same state). */
+export function isReturnFor(tabUrl: string | undefined, pending: PendingSignIn): boolean {
+  if (!isSignInReturn(tabUrl, pending.redirectUri)) return false;
+  return new URL(tabUrl as string).searchParams.get('state') === pending.state;
+}
+
+/** The origin pattern Safari must allow so Frame can read the return page's address. */
+export function signInReturnOrigin(redirectUri: string): string {
+  return `${new URL(redirectUri).origin}/*`;
 }
 
 export type RedirectResult = { ok: true; code: string } | { ok: false; message: string };

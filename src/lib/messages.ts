@@ -1,3 +1,4 @@
+import type { BrowserTarget } from './platform';
 import type { Alias, AliasList } from './aliases';
 import type { ControlState } from './control';
 import type { FrameExposure, FramePlan } from './frame/types';
@@ -20,6 +21,10 @@ export interface UiState {
   /** False when the browser has taken away Frame's access to websites. Page protections can't run then. */
   siteAccess: boolean;
   tab: { host: string | null; restricted: boolean };
+  /** Which build this is. The UI words a few things differently for Safari. */
+  browser: BrowserTarget;
+  /** False when this build doesn't offer Frame sign-in (Safari, until the site allows it). */
+  signInAvailable: boolean;
   siteNotice: SiteNotice | null;
   /** Signed out, signed in without the aliases scope, or ready to use aliases. */
   aliasAccess: AliasAccess;

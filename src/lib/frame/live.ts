@@ -1,3 +1,4 @@
+import { signInClient } from '../auth';
 import { FrameApiError, NETWORK_ERROR } from './errors';
 import { parseAliasEnvelope, parseAliasList, type Alias, type AliasList, type AliasPatch } from '../aliases';
 import {
@@ -22,6 +23,8 @@ import type { CreateAliasInput, ExchangeInput, FrameAccount, FrameClient, FrameE
  * Chrome’s Origin is chrome-extension://<id>.
  * Firefox’s Origin is moz-extension://<per-install uuid>. Firefox builds
  * also send client=firefox so the site can allow that origin.
+ * Safari’s Origin is safari-web-extension://<per-install uuid>. Safari builds
+ * send client=safari the same way.
  */
 export class LiveFrameClient implements FrameClient {
   readonly mode = 'live' as const;
@@ -102,10 +105,11 @@ export class LiveFrameClient implements FrameClient {
     return parseTokenResponse(await this.post(TOKEN_PATH, this.withClient(body)), clientId);
   }
 
-  /** Firefox only. Chrome bodies stay exactly as the live contract. */
+  /** Firefox and Safari only. Chrome bodies stay exactly as the live contract. */
   private withClient(body: Record<string, string>): Record<string, string> {
-    if (this.browserName !== 'firefox') return body;
-    return { ...body, client: 'firefox' };
+    const client = signInClient(this.browserName);
+    if (!client) return body;
+    return { ...body, client };
   }
 
   private post(path: string, body: Record<string, string>): Promise<unknown> {

@@ -1,5 +1,13 @@
 import { browser } from 'wxt/browser';
-import { forgetTarget, pageTarget, type ForgetTarget } from '../lib/forget-site';
+import {
+  cookieClearMessage,
+  cookieUrl,
+  cookiesToForget,
+  forgetTarget,
+  pageTarget,
+  type ForgetTarget,
+  type PageTarget,
+} from '../lib/forget-site';
 
 const ORIGIN_DATA = {
   cache: true,
@@ -25,12 +33,47 @@ const FIREFOX_HOSTNAME_DATA = {
 export async function clearSite(url: string | undefined): Promise<string> {
   const page = pageTarget(url);
   if (!page) throw new Error('Frame can’t clear data for this page.');
-  if (!browser.browsingData?.remove) throw new Error('This browser can’t clear site data from an extension.');
+  // Safari has no browsingData API. It clears cookies and the storage of open tabs instead.
+  if (!browser.browsingData?.remove) return clearWithoutBrowsingData(page);
   const target = forgetTarget(page, await cookieDomains());
   await removeSiteData(target);
-  await clearOpenTabs(target.hostnames);
+  await clearOpenTabs(target.hostnames, clearPageStorage);
   const extra = target.truncated ? ' Some further subdomains were left.' : '';
   return `Cleared cookies and site data for ${target.host}.${extra}`;
+}
+
+/**
+ * Safari: remove the site's cookies one by one, then clear local storage,
+ * session storage, IndexedDB, the Cache API, and service workers from inside
+ * the site's open tabs. The HTTP cache can't be cleared, and neither can storage
+ * for a site with no open tab. The result says so.
+ */
+async function clearWithoutBrowsingData(page: PageTarget): Promise<string> {
+  if (!browser.cookies?.getAll || !browser.cookies.remove) {
+    throw new Error('This browser can’t clear site data from an extension.');
+  }
+  const cookies = await browser.cookies.getAll({}).catch(() => {
+    throw new Error('Couldn’t read this site’s cookies.');
+  });
+  const target = forgetTarget(
+    page,
+    cookies.map((cookie) => cookie.domain),
+  );
+  let failed = 0;
+  for (const cookie of cookiesToForget(cookies, page.host, target.hostnames)) {
+    try {
+      await browser.cookies.remove({
+        url: cookieUrl(cookie),
+        name: cookie.name,
+        ...(cookie.storeId ? { storeId: cookie.storeId } : {}),
+      });
+    } catch {
+      failed += 1;
+    }
+  }
+  const tabs = await clearOpenTabs(target.hostnames, clearAllPageStorage);
+  const extra = target.truncated ? ' Some further subdomains were left.' : '';
+  return `${cookieClearMessage(target.host, tabs, failed)}${extra}`;
 }
 
 async function cookieDomains(): Promise<string[]> {
@@ -75,31 +118,38 @@ function nonempty(values: string[]): [string, ...string[]] {
   return [first, ...rest];
 }
 
-/** Session storage and the Cache API, in open tabs of these hosts. Firefox can't clear either through browsingData. */
-async function clearOpenTabs(hostnames: readonly string[]): Promise<void> {
-  if (!browser.scripting?.executeScript) return;
+/**
+ * Runs `clear` in open tabs of these hosts and returns how many tabs it ran in.
+ * Chrome and Firefox use it for session storage and the Cache API, which
+ * browsingData can't reach. Safari uses it for all page storage.
+ */
+async function clearOpenTabs(hostnames: readonly string[], clear: () => Promise<void>): Promise<number> {
+  if (!browser.scripting?.executeScript) return 0;
   let tabs: { id?: number; url?: string }[] = [];
   try {
     tabs = await browser.tabs.query({});
   } catch {
-    return;
+    return 0;
   }
   const wanted = new Set(hostnames);
-  await Promise.all(
+  const results = await Promise.all(
     tabs.map(async (tab) => {
-      if (tab.id === undefined || !tab.url) return;
+      if (tab.id === undefined || !tab.url) return false;
       const page = pageTarget(tab.url);
-      if (!page || !wanted.has(page.host)) return;
+      if (!page || !wanted.has(page.host)) return false;
       try {
         await browser.scripting.executeScript({
           target: { tabId: tab.id },
-          func: clearPageStorage,
+          func: clear,
         });
+        return true;
       } catch {
-        /* A restricted tab keeps its session storage. */
+        /* A restricted tab, or one Frame isn't allowed on, keeps its storage. */
+        return false;
       }
     }),
   );
+  return results.filter(Boolean).length;
 }
 
 /** Runs in the page. It must not use anything from this module's scope. */
@@ -115,5 +165,45 @@ async function clearPageStorage(): Promise<void> {
     await Promise.all(names.map((name) => caches.delete(name)));
   } catch {
     /* The Cache API is only offered on secure pages. */
+  }
+}
+
+/** Runs in the page (Safari). It must not use anything from this module's scope. */
+async function clearAllPageStorage(): Promise<void> {
+  try {
+    localStorage.clear();
+  } catch {
+    /* Storage can be blocked for this page. */
+  }
+  try {
+    sessionStorage.clear();
+  } catch {
+    /* Storage can be blocked for this page. */
+  }
+  try {
+    if (typeof indexedDB !== 'undefined' && typeof indexedDB.databases === 'function') {
+      const databases = await indexedDB.databases();
+      for (const database of databases) {
+        if (database.name) indexedDB.deleteDatabase(database.name);
+      }
+    }
+  } catch {
+    /* IndexedDB can be unavailable in private windows. */
+  }
+  try {
+    if (typeof caches !== 'undefined') {
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
+    }
+  } catch {
+    /* The Cache API is only offered on secure pages. */
+  }
+  try {
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+  } catch {
+    /* Service workers are only offered on secure pages. */
   }
 }

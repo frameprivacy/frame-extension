@@ -90,6 +90,45 @@ describe('live Frame client', () => {
     expect(calls[3]?.init.headers).not.toMatchObject({ client: 'firefox' });
   });
 
+  it('sends client=safari on token and revoke from Safari', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      if (String(url).endsWith('/api/extension/token')) {
+        return Promise.resolve(
+          jsonResponse({
+            access_token: 'frx_access',
+            refresh_token: 'frx_refresh',
+            expires_in: 900,
+            token_type: 'Bearer',
+            scope: 'account exposure',
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
+    const safariClientId = 'com.frameprivacy.safari.extension';
+    const client = new LiveFrameClient('safari');
+    await client.exchangeCode({
+      code: 'frc_code',
+      codeVerifier: 'verifier',
+      redirectUri: 'https://frameprivacy.com/connect/safari',
+      clientId: safariClientId,
+    });
+    await client.revoke('frx_refresh', safariClientId);
+    expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
+      grant_type: 'authorization_code',
+      client: 'safari',
+      client_id: safariClientId,
+      redirect_uri: 'https://frameprivacy.com/connect/safari',
+    });
+    expect(JSON.parse(String(calls[1]?.init.body))).toEqual({
+      token: 'frx_refresh',
+      client_id: safariClientId,
+      client: 'safari',
+    });
+  });
+
   it('treats a reused refresh token as a dead connection', async () => {
     vi.stubGlobal(
       'fetch',
