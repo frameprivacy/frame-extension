@@ -38,7 +38,7 @@ export const SAFARI_REDIRECT_URI = 'https://frameprivacy.com/connect/safari';
 /**
  * Safari sign-in needs frameprivacy.com to allow SAFARI_CLIENT_ID, the redirect
  * page above, `client=safari`, and `safari-web-extension://` origins
- * (docs/safari.md, "Website changes"). Until the site does, Safari builds don't
- * offer sign-in and say so. Flip this once the site ships those changes.
+ * (docs/safari.md, "Website changes"). The site ships all of these, so Safari
+ * builds offer sign-in.
  */
-export const SAFARI_SIGN_IN_READY = false;
+export const SAFARI_SIGN_IN_READY = true;
