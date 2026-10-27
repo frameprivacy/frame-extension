@@ -18,7 +18,7 @@ import { createFrameClient } from '../lib/frame/create-client';
 import { endsSession, FrameApiError, SESSION_ENDED } from '../lib/frame/errors';
 import { buildAuthorizeUrl } from '../lib/frame/parse';
 import { createPreviewSession } from '../lib/frame/stub';
-import type { FrameExposure } from '../lib/frame/types';
+import type { FrameExposure, TokenSet } from '../lib/frame/types';
 import {
   isAliasMessage,
   isExtensionMessage,
@@ -321,8 +321,9 @@ async function completeSignIn(
 ): Promise<string | null> {
   const parsed = parseAuthRedirect(returned, pending.state);
   if (!parsed.ok) return parsed.message;
+  let token: TokenSet | null = null;
   try {
-    const token = await client.exchangeCode({
+    token = await client.exchangeCode({
       code: parsed.code,
       codeVerifier: pending.verifier,
       redirectUri: pending.redirectUri,
@@ -336,10 +337,13 @@ async function completeSignIn(
       if (error instanceof FrameApiError && endsSession(error)) throw error;
       exposure = null;
     }
-    await enqueue(() => saveSession({ token, account, exposure }));
+    const issued = token;
+    await enqueue(() => saveSession({ token: issued, account, exposure }));
     exposureFetchedAt = Date.now();
     return null;
   } catch (error) {
+    // The exchange already connected this browser on the server. Nothing was saved here, so give the slot back.
+    if (token) await revokeUnsaved(token);
     if (error instanceof FrameApiError) return error.message;
     return 'Frame could not complete sign-in.';
   }
@@ -401,6 +405,16 @@ async function applyAll(settings: Settings): Promise<void> {
   if (!failed) appliedSignature = signature;
 }
 
+/** Best effort: revoke tokens from a sign-in that failed before the session was saved (#863). */
+async function revokeUnsaved(token: TokenSet): Promise<void> {
+  try {
+    if ((await loadSession())?.token.refreshToken === token.refreshToken) return;
+    await client.revoke(token.refreshToken, token.clientId);
+  } catch {
+    // The server row then ages out like any unused connection.
+  }
+}
+
 async function refreshedSession(session: StoredSession | null): Promise<StoredSession | null> {
   if (!session) return null;
   let current = session;
@@ -422,12 +436,22 @@ async function refreshedSession(session: StoredSession | null): Promise<StoredSe
   }
   if (Date.now() - exposureFetchedAt < EXPOSURE_TTL_MS && current.exposure) return current;
   try {
-    const exposure = await client.getExposure(current.token.accessToken);
+    const [exposure, account] = await Promise.all([
+      client.getExposure(current.token.accessToken),
+      // Name, email and plan can change on the website after sign-in (#860).
+      client.getAccount(current.token.accessToken).catch((error: unknown) => {
+        if (error instanceof FrameApiError && endsSession(error)) throw error;
+        return current.account;
+      }),
+    ]);
     exposureFetchedAt = Date.now();
     // A refresh that failed for a moment earlier left its message behind. This call proves the session works.
     authError = null;
-    if (JSON.stringify(exposure) !== JSON.stringify(current.exposure)) {
-      current = { ...current, exposure };
+    if (
+      JSON.stringify(exposure) !== JSON.stringify(current.exposure) ||
+      JSON.stringify(account) !== JSON.stringify(current.account)
+    ) {
+      current = { ...current, exposure, account };
       await saveSession(current);
     }
   } catch (error) {
