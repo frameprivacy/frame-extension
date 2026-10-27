@@ -90,7 +90,9 @@ function parseName(value: unknown): string | null {
 }
 
 function parsePlan(value: unknown): FramePlan | null {
-  if (value === 'free' || value === 'plus' || value === 'family') return value;
+  if (value === 'free' || value === 'plus' || value === 'household' || value === 'business') return value;
+  // Older builds and sessions used 'family' for the Household plan.
+  if (value === 'family') return 'household';
   return null;
 }
 

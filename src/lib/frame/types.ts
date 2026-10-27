@@ -1,6 +1,6 @@
 import type { Alias, AliasList, AliasPatch } from '../aliases';
 
-export type FramePlan = 'free' | 'plus' | 'family';
+export type FramePlan = 'free' | 'plus' | 'household' | 'business';
 
 export interface TokenSet {
   accessToken: string;
