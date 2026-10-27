@@ -348,7 +348,8 @@ function AreaBar({ value }: { value: number }) {
 
 function planLabel(plan: NonNullable<PublicAccount['plan']>): string {
   if (plan === 'plus') return 'Plus';
-  if (plan === 'family') return 'Family';
+  if (plan === 'household') return 'Household';
+  if (plan === 'business') return 'Business';
   return 'Free';
 }
 

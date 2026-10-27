@@ -91,6 +91,9 @@ describe('Frame API parsing', () => {
       plan: 'plus',
     });
     expect(parseAccount({ id: 'user_1', email: 'ada@example.com', name: null, plan: 'nope' }).plan).toBeNull();
+    expect(parseAccount({ id: 'user_1', email: 'ada@example.com', name: null, plan: 'household' }).plan).toBe('household');
+    expect(parseAccount({ id: 'user_1', email: 'ada@example.com', name: null, plan: 'business' }).plan).toBe('business');
+    expect(parseAccount({ id: 'user_1', email: 'ada@example.com', name: null, plan: 'family' }).plan).toBe('household');
   });
 
   it('keeps a null exposure score null', () => {
