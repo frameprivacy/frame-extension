@@ -110,7 +110,7 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
                 type="text"
                 value={label}
                 maxLength={ALIAS_LABEL_MAX}
-                placeholder="Label (optional), like Newsletter"
+                placeholder="Label (optional), e.g. Newsletter sign-ups"
                 aria-label="Label for the new alias"
                 onChange={(event) => setLabel(event.target.value)}
                 onKeyDown={(event) => {
@@ -298,7 +298,7 @@ function AliasItem({
   const meta = [
     alias.createdOrigin ? `Made on ${alias.createdOrigin}` : 'Made on frameprivacy.com',
     full ? `${alias.forwardedCount} ${alias.forwardedCount === 1 ? 'email' : 'emails'} forwarded` : null,
-    full && alias.createdAt ? `Since ${shortDate(alias.createdAt)}` : null,
+    full && alias.createdAt ? `Made ${shortDate(alias.createdAt)}` : null,
   ].filter((part): part is string => Boolean(part));
 
   return (
