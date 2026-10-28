@@ -1,0 +1,14 @@
+{
+  "descriptionChromiumFirefox": {
+    "message": "Privacy controls for this browser, and an optional Frame account on Chrome and Firefox. Does not make you anonymous.",
+    "description": "Store and browser listing description for the Chrome and Firefox builds."
+  },
+  "descriptionSafariWithAccount": {
+    "message": "Privacy controls for this browser, and an optional Frame account. Does not make you anonymous.",
+    "description": "Safari description once Frame account sign-in is available there."
+  },
+  "descriptionSafariNoAccount": {
+    "message": "Privacy controls for this browser. Does not make you anonymous.",
+    "description": "Safari description while sign-in is not available there."
+  }
+}

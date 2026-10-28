@@ -1,4 +1,5 @@
 import { normalizeHost } from './settings';
+import { plural, t } from './i18n';
 
 /** How many hosts one clear will cover. The open site is always first. */
 export const MAX_FORGET_HOSTS = 50;
@@ -95,11 +96,15 @@ export function cookieUrl(cookie: CookieRef): string {
 
 /** The result line for a clear done with cookies and open tabs only (Safari). */
 export function cookieClearMessage(host: string, tabsCleared: number, failed: number): string {
-  const storage = tabsCleared > 0 ? ' and its storage in open tabs' : '';
-  const missed = failed > 0 ? ` ${failed} ${failed === 1 ? 'cookie' : 'cookies'} couldn’t be removed.` : '';
+  const cleared =
+    tabsCleared > 0
+      ? t('Cleared cookies for {host} and its storage in open tabs.', { host })
+      : t('Cleared cookies for {host}.', { host });
+  const missed =
+    failed > 0 ? ` ${plural(failed, '{n} cookie couldn’t be removed.', '{n} cookies couldn’t be removed.')}` : '';
   const limit =
     tabsCleared > 0
-      ? 'Safari doesn’t let extensions clear the cache, or storage for tabs that aren’t open.'
-      : 'Safari doesn’t let extensions clear the cache, or storage unless the site is open in a tab.';
-  return `Cleared cookies for ${host}${storage}.${missed} ${limit}`;
+      ? t('Safari doesn’t let extensions clear the cache, or storage for tabs that aren’t open.')
+      : t('Safari doesn’t let extensions clear the cache, or storage unless the site is open in a tab.');
+  return `${cleared}${missed} ${limit}`;
 }

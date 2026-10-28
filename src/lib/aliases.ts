@@ -1,5 +1,6 @@
 import { NETWORK_ERROR, SESSION_ENDED } from './frame/errors';
 import { normalizeHost } from './settings';
+import { t } from './i18n';
 
 /** One site an alias was used on. Times are ISO strings from the Frame API. */
 export interface AliasUsage {
@@ -94,7 +95,7 @@ export function sortForSite<T extends Pick<Alias, 'usages' | 'createdOrigin' | '
 
 export function parseAliasList(body: unknown): AliasList {
   const record = asRecord(body);
-  if (!record || !Array.isArray(record.aliases)) throw new Error('Frame returned an unexpected alias list.');
+  if (!record || !Array.isArray(record.aliases)) throw new Error(t('Frame returned an unexpected alias list.'));
   const aliases: Alias[] = [];
   for (const item of record.aliases) {
     const alias = readAlias(item);
@@ -112,7 +113,7 @@ export function parseAliasList(body: unknown): AliasList {
 /** `{ alias }` from create, get, change and usage calls. */
 export function parseAliasEnvelope(body: unknown): Alias {
   const alias = readAlias(asRecord(body)?.alias);
-  if (!alias) throw new Error('Frame returned an unexpected alias.');
+  if (!alias) throw new Error(t('Frame returned an unexpected alias.'));
   return alias;
 }
 
@@ -161,7 +162,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-export const ALIAS_RECONNECT = 'Frame needs your OK to manage email aliases. Sign in again to allow it.';
+export const ALIAS_RECONNECT = t('Frame needs your OK to manage email aliases. Sign in again to allow it.');
 
 /** True when the fix is to sign in again and approve the aliases scope. */
 export function needsReconnect(status: number | null, code: string | null): boolean {
@@ -173,36 +174,36 @@ export function aliasErrorMessage(status: number | null, code: string | null, re
   if (status === null) return NETWORK_ERROR;
   if (needsReconnect(status, code)) return ALIAS_RECONNECT;
   if (status === 401) return SESSION_ENDED;
-  if (code === 'EMAIL_UNVERIFIED') return 'Verify your Frame account email first. Aliases forward to it.';
-  if (code === 'ACCOUNT_READ_ONLY') return 'This Frame account is scheduled for deletion, so aliases can’t be changed.';
-  if (code === 'ALIAS_LIMIT') return `You have the most aliases an account can have (${ALIAS_MAX}). Delete one you no longer use.`;
-  if (code === 'ALIAS_RETRY') return 'That alias is still being set up. Try again in a minute.';
-  if (code === 'ALIASES_UNAVAILABLE' || status === 503) return 'Email aliases aren’t available right now. Try again later.';
-  if (code === 'NOT_FOUND' || status === 404) return 'That alias no longer exists.';
+  if (code === 'EMAIL_UNVERIFIED') return t('Verify your Frame account email first. Aliases forward to it.');
+  if (code === 'ACCOUNT_READ_ONLY') return t('This Frame account is scheduled for deletion, so aliases can’t be changed.');
+  if (code === 'ALIAS_LIMIT') return t('You have the most aliases an account can have ({max}). Delete one you no longer use.', { max: ALIAS_MAX });
+  if (code === 'ALIAS_RETRY') return t('That alias is still being set up. Try again in a minute.');
+  if (code === 'ALIASES_UNAVAILABLE' || status === 503) return t('Email aliases aren’t available right now. Try again later.');
+  if (code === 'NOT_FOUND' || status === 404) return t('That alias no longer exists.');
   if (status === 429) return rateLimitMessage(code, retryAfter);
-  if (status === 403) return 'Frame refused that request from this browser.';
-  if (code === 'INVALID' || status === 400) return `Frame didn’t accept that. Labels can be up to ${ALIAS_LABEL_MAX} characters.`;
-  return 'Frame couldn’t complete that request.';
+  if (status === 403) return t('Frame refused that request from this browser.');
+  if (code === 'INVALID' || status === 400) return t('Frame didn’t accept that. Labels can be up to {max} characters.', { max: ALIAS_LABEL_MAX });
+  return t('Frame couldn’t complete that request.');
 }
 
 function rateLimitMessage(code: string | null, retryAfter: string | null): string {
   const wait = waitLabel(retryAfter);
   const lead =
     code === 'RATE_LIMITED'
-      ? 'That’s the limit for now: 30 new aliases a day and 300 changes an hour.'
-      : 'Frame is busy.';
-  return wait ? `${lead} Try again ${wait}.` : `${lead} Try again later.`;
+      ? t('That’s the limit for now: 30 new aliases a day and 300 changes an hour.')
+      : t('Frame is busy.');
+  return `${lead} ${wait ?? t('Try again later.')}`;
 }
 
 function waitLabel(retryAfter: string | null): string | null {
   if (!retryAfter || !/^\d+$/.test(retryAfter.trim())) return null;
   const seconds = Number(retryAfter.trim());
   if (seconds <= 0) return null;
-  if (seconds <= 90) return `in ${seconds} seconds`;
+  if (seconds <= 90) return t('Try again in {n} seconds.', { n: seconds });
   const minutes = Math.ceil(seconds / 60);
-  if (minutes <= 90) return `in about ${minutes} minutes`;
+  if (minutes <= 90) return t('Try again in about {n} minutes.', { n: minutes });
   const hours = Math.ceil(minutes / 60);
-  return `in about ${hours} hours`;
+  return t('Try again in about {n} hours.', { n: hours });
 }
 
 /** What the content script reads from an input to decide if it takes an email address. */

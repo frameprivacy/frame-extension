@@ -4,6 +4,7 @@ import { ALIAS_LABEL_MAX, ALIAS_SITES_MAX, aliasSite, shortDate, sortForSite, us
 import type { AliasAccess } from '../lib/messages';
 import { Switch } from './Switch';
 import { useAliases } from './useAliases';
+import { locale, plural, t } from '../lib/i18n';
 
 interface Props {
   variant: 'popup' | 'options';
@@ -35,11 +36,11 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
     if (!options) return null;
     return (
       <>
-        <h2 className="label" id="aliases">Email aliases</h2>
+        <h2 className="label" id="aliases">{t('Email aliases')}</h2>
         <p className="empty panel">
           {signInAvailable
-            ? 'Sign in to make Frame email aliases: a different address for each site, forwarded to your inbox. You can turn one off when it gets spam.'
-            : 'Frame email aliases need a Frame account, and sign-in isn’t available in Safari yet.'}
+            ? t('Sign in to make Frame email aliases: a different address for each site, forwarded to your inbox. You can turn one off when it gets spam.')
+            : t('Frame email aliases need a Frame account, and sign-in isn’t available in Safari yet.')}
         </p>
       </>
     );
@@ -49,15 +50,16 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
   if (needsReconnect) {
     return (
       <>
-        <h2 className="label" id="aliases">Email aliases</h2>
+        <h2 className="label" id="aliases">{t('Email aliases')}</h2>
         <section className="panel pad alias-panel">
-          <h3 className="host-sub">Allow email aliases</h3>
+          <h3 className="host-sub">{t('Allow email aliases')}</h3>
           <p className="hint">
-            Frame can make a different email address for each site and fill it into sign-up forms. Sign in again and
-            approve <strong>email aliases</strong> to turn this on. Your other settings stay as they are.
+            {t(
+              'Frame can make a different email address for each site and fill it into sign-up forms. Sign in again and approve email aliases to turn this on. Your other settings stay as they are.',
+            )}
           </p>
           <button type="button" className="btn alias-gap" onClick={onReconnect} disabled={signingIn}>
-            {signingIn ? 'Waiting…' : 'Allow aliases'}
+            {signingIn ? t('Waiting…') : t('Allow aliases')}
           </button>
         </section>
       </>
@@ -86,20 +88,22 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
   return (
     <>
       <h2 className="label" id="aliases" tabIndex={-1}>
-        Email aliases
+        {t('Email aliases')}
       </h2>
       <section className="panel alias-panel">
         <div className="alias-head">
           {options ? (
             <p className="hint alias-intro">
-              Each alias forwards to {list?.destination || 'your Frame account email'}. Use a different one for each site, so you
-              can see who shares it, and turn it off when it gets spam.
-              {list ? ` ${list.aliases.length} of ${list.max} used.` : ''}
+              {t(
+                'Each alias forwards to {destination}. Use a different one for each site, so you can see who shares it, and turn it off when it gets spam.',
+                { destination: list?.destination || t('your Frame account email') },
+              )}
+              {list ? ` ${t('{used} of {max} used.', { used: list.aliases.length, max: list.max })}` : ''}
             </p>
           ) : (
             <p className="hint alias-intro">
-              {site ? `Aliases for ${site}.` : 'Open a site to make an alias for it.'} Click the Frame button in an
-              email field to fill one.
+              {site ? t('Aliases for {site}.', { site }) : t('Open a site to make an alias for it.')}{' '}
+              {t('Click the Frame button in an email field to fill one.')}
             </p>
           )}
 
@@ -110,15 +114,15 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
                 type="text"
                 value={label}
                 maxLength={ALIAS_LABEL_MAX}
-                placeholder="Label (optional), e.g. Newsletter sign-ups"
-                aria-label="Label for the new alias"
+                placeholder={t('Label (optional), e.g. Newsletter sign-ups')}
+                aria-label={t('Label for the new alias')}
                 onChange={(event) => setLabel(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !creating && !atLimit && !unavailable) void make();
                 }}
               />
               <button type="button" className="btn" onClick={() => void make()} disabled={creating || atLimit || unavailable || !list}>
-                {creating ? 'Making…' : 'New alias'}
+                {creating ? t('Making…') : t('New alias')}
               </button>
             </div>
           ) : (
@@ -128,14 +132,16 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
               onClick={() => void make()}
               disabled={creating || atLimit || unavailable || !list}
             >
-              {creating ? 'Making…' : site ? `New alias for ${site}` : 'New alias'}
+              {creating ? t('Making…') : site ? t('New alias for {site}', { site }) : t('New alias')}
             </button>
           )}
 
           {atLimit ? (
-            <p className="note hint">You have {list?.max} aliases, the most an account can have. Delete one to make another.</p>
+            <p className="note hint">
+              {t('You have {max} aliases, the most an account can have. Delete one to make another.', { max: list?.max ?? 0 })}
+            </p>
           ) : null}
-          {unavailable ? <p className="note hint">Email aliases aren’t available right now.</p> : null}
+          {unavailable ? <p className="note hint">{t('Email aliases aren’t available right now.')}</p> : null}
           {created ? <CreatedAlias alias={created} /> : null}
           <div role="status" aria-live="polite">
             {notice ? <p className="error alias-error">{notice}</p> : null}
@@ -146,14 +152,14 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
           <div className="alias-head">
             <p className="error alias-error" role="alert">{aliases.error.error}</p>
             <button type="button" className="text-link alias-gap" onClick={() => void aliases.reload()}>
-              Try again
+              {t('Try again')}
             </button>
           </div>
         ) : !list ? (
-          <p className="hint alias-empty">{aliases.loading ? 'Loading aliases…' : ''}</p>
+          <p className="hint alias-empty">{aliases.loading ? t('Loading aliases…') : ''}</p>
         ) : shown.length === 0 ? (
           <p className="hint alias-empty">
-            {options ? 'No aliases yet.' : site ? `No aliases used on ${site} yet.` : 'No site open.'}
+            {options ? t('No aliases yet.') : site ? t('No aliases used on {site} yet.', { site }) : t('No site open.')}
           </p>
         ) : (
           <ul className="alias-list">
@@ -179,14 +185,15 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
         {options ? (
           <div className="row alias-setting">
             <div className="row-copy">
-              <h3>Offer aliases in email fields</h3>
+              <h3>{t('Offer aliases in email fields')}</h3>
               <p id="alias-autofill-desc">
-                Shows a small Frame button in email fields on websites. Frame only fills a field when you pick an alias,
-                and it notes the site against that alias. It doesn’t read what you type or send page contents anywhere.
+                {t(
+                  'Shows a small Frame button in email fields on websites. Frame only fills a field when you pick an alias, and it notes the site against that alias. It doesn’t read what you type or send page contents anywhere.',
+                )}
               </p>
             </div>
             <Switch
-              label="Offer aliases in email fields"
+              label={t('Offer aliases in email fields')}
               describedBy="alias-autofill-desc"
               checked={autofill}
               onChange={onAutofill}
@@ -195,7 +202,7 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
         ) : (
           <div className="alias-foot">
             <button type="button" className="text-link" onClick={() => void browser.runtime.openOptionsPage()}>
-              Manage aliases
+              {t('Manage aliases')}
             </button>
           </div>
         )}
@@ -207,7 +214,7 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
 function CreatedAlias({ alias }: { alias: Alias }) {
   return (
     <div className="alias-created">
-      <p className="hint">New alias ready. It can take about a minute before mail to it arrives.</p>
+      <p className="hint">{t('New alias ready. It can take about a minute before mail to it arrives.')}</p>
       <div className="alias-address-row">
         <code className="alias-address" title={alias.address}>{alias.address}</code>
         <CopyButton text={alias.address} />
@@ -227,7 +234,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       className="text-link alias-copy"
-      aria-label={`Copy ${text}`}
+      aria-label={t('Copy {text}', { text })}
       onClick={() => {
         void navigator.clipboard
           .writeText(text)
@@ -235,7 +242,7 @@ function CopyButton({ text }: { text: string }) {
           .catch(() => setState('failed'));
       }}
     >
-      {state === 'copied' ? 'Copied' : state === 'failed' ? 'Couldn’t copy' : 'Copy'}
+      {state === 'copied' ? t('Copied') : state === 'failed' ? t('Couldn’t copy') : t('Copy')}
     </button>
   );
 }
@@ -296,9 +303,9 @@ function AliasItem({
   };
 
   const meta = [
-    alias.createdOrigin ? `Made on ${alias.createdOrigin}` : 'Made on frameprivacy.com',
-    full ? `${alias.forwardedCount} ${alias.forwardedCount === 1 ? 'email' : 'emails'} forwarded` : null,
-    full && alias.createdAt ? `Made ${shortDate(alias.createdAt)}` : null,
+    t('Made on {origin}', { origin: alias.createdOrigin || 'frameprivacy.com' }),
+    full ? plural(alias.forwardedCount, '{n} email forwarded', '{n} emails forwarded') : null,
+    full && alias.createdAt ? t('Made {date}', { date: shortDate(alias.createdAt, locale()) }) : null,
   ].filter((part): part is string => Boolean(part));
 
   return (
@@ -312,11 +319,11 @@ function AliasItem({
           {alias.label ? <p className="alias-label">{alias.label}</p> : null}
           <p className="hint">
             {meta.join(' · ')}
-            {alias.enabled ? '' : ' · Off: mail to it is dropped'}
+            {alias.enabled ? '' : ` · ${t('Off: mail to it is dropped')}`}
           </p>
         </div>
         <Switch
-          label={`Forward mail sent to ${alias.address}`}
+          label={t('Forward mail sent to {address}', { address: alias.address })}
           checked={alias.enabled}
           disabled={busy}
           onChange={(enabled) => void act(() => onEnabled(enabled))}
@@ -334,8 +341,8 @@ function AliasItem({
               type="text"
               value={draft}
               maxLength={ALIAS_LABEL_MAX}
-              placeholder="Label"
-              aria-label={`Label for ${alias.address}`}
+              placeholder={t('Label')}
+              aria-label={t('Label for {address}', { address: alias.address })}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
@@ -353,17 +360,17 @@ function AliasItem({
               disabled={busy}
               onClick={() => void act(() => onRename(draft.trim() || null)).then((ok) => ok && stopEditing())}
             >
-              Save
+              {t('Save')}
             </button>
             <button type="button" className="text-link" onClick={stopEditing} disabled={busy}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         ) : confirming ? (
           <div
             className="confirm"
             role="group"
-            aria-label={`Delete ${alias.address}`}
+            aria-label={t('Delete {address}', { address: alias.address })}
             onKeyDown={(event) => {
               if (event.key === 'Escape' && !busy) {
                 event.stopPropagation();
@@ -372,15 +379,17 @@ function AliasItem({
             }}
           >
             <p className="hint">
-              Delete {alias.address}? Mail sent to it stops arriving, and Frame never gives this address out again. To
-              pause it instead, turn it off.
+              {t(
+                'Delete {address}? Mail sent to it stops arriving, and Frame never gives this address out again. To pause it instead, turn it off.',
+                { address: alias.address },
+              )}
             </p>
             <div className="site-actions">
               <button type="button" className="btn" ref={confirmRef} disabled={busy} onClick={() => void act(onDelete)}>
-                {busy ? 'Deleting…' : 'Delete alias'}
+                {busy ? t('Deleting…') : t('Delete alias')}
               </button>
               <button type="button" className="text-link" onClick={stopConfirming} disabled={busy}>
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
           </div>
@@ -390,22 +399,24 @@ function AliasItem({
               type="button"
               className="text-link"
               ref={renameRef}
-              aria-label={`${alias.label ? 'Rename' : 'Add label to'} ${alias.address}`}
+              aria-label={
+                alias.label ? t('Rename {address}', { address: alias.address }) : t('Add label to {address}', { address: alias.address })
+              }
               onClick={() => {
                 setDraft(alias.label ?? '');
                 setEditing(true);
               }}
             >
-              {alias.label ? 'Rename' : 'Add label'}
+              {alias.label ? t('Rename') : t('Add label')}
             </button>
             <button
               type="button"
               className="text-link"
               ref={deleteRef}
-              aria-label={`Delete ${alias.address}`}
+              aria-label={t('Delete {address}', { address: alias.address })}
               onClick={() => setConfirming(true)}
             >
-              Delete
+              {t('Delete')}
             </button>
           </div>
         )
@@ -420,20 +431,20 @@ function AliasItem({
 }
 
 function UsedOn({ alias, site }: { alias: Alias; site: string | null }) {
-  if (alias.usages.length === 0) return <p className="hint alias-used">Not used on a site yet.</p>;
+  if (alias.usages.length === 0) return <p className="hint alias-used">{t('Not used on a site yet.')}</p>;
   return (
     <details className="alias-used">
       <summary>
-        Used on {alias.usages.length} {alias.usages.length === 1 ? 'site' : 'sites'}
-        {alias.usages.length >= ALIAS_SITES_MAX ? ` (Frame keeps the latest ${ALIAS_SITES_MAX})` : ''}
+        {plural(alias.usages.length, 'Used on {n} site', 'Used on {n} sites')}
+        {alias.usages.length >= ALIAS_SITES_MAX ? ` ${t('(Frame keeps the latest {max})', { max: ALIAS_SITES_MAX })}` : ''}
       </summary>
       <ul>
         {alias.usages.map((usage) => (
           <li key={usage.site}>
             <span className={usage.site === site ? 'alias-site is-here' : 'alias-site'}>{usage.site}</span>
             <span className="pill">
-              {usage.lastSeenAt ? `Last seen ${shortDate(usage.lastSeenAt)}` : ''}
-              {usage.timesSeen > 1 ? ` · ${usage.timesSeen} times` : ''}
+              {usage.lastSeenAt ? t('Last seen {date}', { date: shortDate(usage.lastSeenAt, locale()) }) : ''}
+              {usage.timesSeen > 1 ? ` · ${plural(usage.timesSeen, '{n} time', '{n} times')}` : ''}
             </span>
           </li>
         ))}

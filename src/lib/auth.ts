@@ -1,3 +1,4 @@
+import { t } from './i18n';
 const VERIFIER_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
 
 export function base64Url(bytes: Uint8Array): string {
@@ -164,16 +165,16 @@ export function parseAuthRedirect(redirectUrl: string, expectedState: string): R
   try {
     url = new URL(redirectUrl);
   } catch {
-    return { ok: false, message: 'Frame returned an unreadable sign-in response.' };
+    return { ok: false, message: t('Frame returned an unreadable sign-in response.') };
   }
   const error = url.searchParams.get('error');
-  if (error === 'access_denied') return { ok: false, message: 'Sign-in was cancelled.' };
-  if (error) return { ok: false, message: 'Frame could not complete sign-in.' };
+  if (error === 'access_denied') return { ok: false, message: t('Sign-in was cancelled.') };
+  if (error) return { ok: false, message: t('Frame could not complete sign-in.') };
   const state = url.searchParams.get('state');
   if (!state || state !== expectedState) {
-    return { ok: false, message: 'Sign-in response did not match this attempt. Try again.' };
+    return { ok: false, message: t('Sign-in response did not match this attempt. Try again.') };
   }
   const code = url.searchParams.get('code');
-  if (!code) return { ok: false, message: 'Frame did not return a sign-in code.' };
+  if (!code) return { ok: false, message: t('Frame did not return a sign-in code.') };
   return { ok: true, code };
 }

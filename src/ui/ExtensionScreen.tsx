@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { TOGGLES, permissionsFor } from '../lib/catalog';
+import { TOGGLES, permissionLabel, permissionsFor } from '../lib/catalog';
 import { signInReturnOrigin } from '../lib/auth';
 import { SAFARI_REDIRECT_URI } from '../lib/extension-ids';
 import type { BrowserTarget } from '../lib/platform';
@@ -14,6 +14,7 @@ import { AliasPanel } from './AliasPanel';
 import { ScoreRing } from './ScoreRing';
 import { Switch } from './Switch';
 import { useExtensionState } from './useExtensionState';
+import { locale, plural, t } from '../lib/i18n';
 
 export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
   const { state, error, send, refresh } = useExtensionState();
@@ -45,13 +46,13 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
             />
           ) : null}
         </header>
-        {options ? null : <h1 className="visually-hidden">Frame privacy controls</h1>}
+        {options ? null : <h1 className="visually-hidden">{t('Frame privacy controls')}</h1>}
 
         {options ? (
           <>
-            <h1 className="display">This browser.</h1>
+            <h1 className="display">{t('This browser.')}</h1>
             <p className="lede">
-              Settings for this browser. They work without a Frame account. Nothing here makes you anonymous.
+              {t('Settings for this browser. They work without a Frame account. Nothing here makes you anonymous.')}
             </p>
           </>
         ) : null}
@@ -61,7 +62,7 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
             <p className="error">{error}</p>
             {!state ? (
               <button type="button" className="text-link" onClick={() => void refresh()}>
-                Try again
+                {t('Try again')}
               </button>
             ) : null}
           </div>
@@ -139,11 +140,11 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
             {options ? <PermissionList browser={state.browser} signInAvailable={state.signInAvailable} /> : null}
 
             <footer className="footer">
-              <p>Frame does not make you anonymous, and it does not replace a VPN or a breach check.</p>
+              <p>{t('Frame does not make you anonymous, and it does not replace a VPN or a breach check.')}</p>
               <div className="footer-links">
                 {variant === 'popup' ? (
                   <button type="button" className="text-link" onClick={() => void browser.runtime.openOptionsPage()}>
-                    All settings
+                    {t('All settings')}
                   </button>
                 ) : null}
                 <a href="https://frameprivacy.com" target="_blank" rel="noreferrer">
@@ -172,13 +173,13 @@ function AccountButton({
   if (!signedIn) {
     return (
       <button type="button" className="btn" onClick={onSignIn} disabled={signingIn}>
-        {signingIn ? 'Waiting…' : 'Sign in'}
+        {signingIn ? t('Waiting…') : t('Sign in')}
       </button>
     );
   }
   return (
     <button type="button" className="text-link header-link" onClick={onSignOut}>
-      Sign out
+      {t('Sign out')}
     </button>
   );
 }
@@ -186,7 +187,7 @@ function AccountButton({
 function LoadingState() {
   return (
     <div className="loading" aria-busy="true" aria-live="polite">
-      <span className="visually-hidden">Loading Frame…</span>
+      <span className="visually-hidden">{t('Loading Frame…')}</span>
       <div className="panel skeleton skeleton-score" />
       <div className="panel skeleton skeleton-rows" />
     </div>
@@ -200,12 +201,12 @@ function SignedOutCard({ signInAvailable }: { signInAvailable: boolean }) {
         <ScoreRing score={null} />
         <div className="score-copy">
           <h2 className="score-title" id="score-title">
-            Privacy Score
+            {t('Privacy Score')}
           </h2>
           <p className="hint">
             {signInAvailable
-              ? 'Sign in to see the score from your Frame account. Optional: the protections below work without one.'
-              : 'Frame account sign-in isn’t available in Safari yet. Every protection below works without an account.'}
+              ? t('Sign in to see the score from your Frame account. Optional: the protections below work without one.')
+              : t('Frame account sign-in isn’t available in Safari yet. Every protection below works without an account.')}
           </p>
         </div>
       </div>
@@ -222,10 +223,10 @@ function ScoreCard({ account }: { account: PublicAccount }) {
         <ScoreRing score={score} />
         <div className="score-copy">
           <h2 className="score-title" id="score-title">
-            Privacy Score
+            {t('Privacy Score')}
           </h2>
           {score === null ? (
-            <p className="score-band">Not checked yet</p>
+            <p className="score-band">{t('Not checked yet')}</p>
           ) : (
             <p className="score-band">{bandLabel(scoreBand(clampScore(score)))}</p>
           )}
@@ -237,11 +238,11 @@ function ScoreCard({ account }: { account: PublicAccount }) {
         </div>
       </div>
       {score === null ? (
-        <p className="hint score-note">Frame shows a score once it has checked something for your account.</p>
+        <p className="hint score-note">{t('Frame shows a score once it has checked something for your account.')}</p>
       ) : null}
       <ExposureMeta exposure={account.exposure} />
       <AreaList exposure={account.exposure} />
-      {account.preview ? <p className="preview">Preview data, not connected</p> : null}
+      {account.preview ? <p className="preview">{t('Preview data, not connected')}</p> : null}
     </section>
   );
 }
@@ -283,12 +284,12 @@ function Protections({
   };
   return (
     <>
-      <h2 className="label">Protections</h2>
+      <h2 className="label">{t('Protections')}</h2>
       <div className="panel rows">{offered.map(row)}</div>
       {missing.length > 0 ? (
         <details className="panel unavailable">
           <summary>
-            <span>Not offered by this browser</span>
+            <span>{t('Not offered by this browser')}</span>
             <span className="count">{missing.length}</span>
           </summary>
           <p className="hint unavailable-hint">{unavailableHint(state.browser)}</p>
@@ -301,16 +302,22 @@ function Protections({
 
 function unavailableHint(target: BrowserTarget): string {
   if (target === 'safari') {
-    return 'Safari gives extensions no privacy settings and no way to change response headers, so Frame leaves these alone. Safari has its own: Prevent cross-site tracking and Hide IP address, in Safari’s Privacy settings.';
+    return t('Safari gives extensions no privacy settings and no way to change response headers, so Frame leaves these alone. Safari has its own: Prevent cross-site tracking and Hide IP address, in Safari’s Privacy settings.');
   }
-  return 'This browser has no setting an extension can change for these, so Frame leaves them alone.';
+  return t('This browser has no setting an extension can change for these, so Frame leaves them alone.');
 }
 
 function ExposureMeta({ exposure }: { exposure: FrameExposure | null }) {
   if (!exposure) return null;
   const month = formatMonth(exposure.month);
-  const findings = countLabel(exposure.openFindings, 'open finding', 'open findings');
-  const breaches = countLabel(exposure.openBreaches, 'open breach', 'open breaches');
+  const findings =
+    typeof exposure.openFindings === 'number'
+      ? plural(exposure.openFindings, '{n} open finding', '{n} open findings')
+      : null;
+  const breaches =
+    typeof exposure.openBreaches === 'number'
+      ? plural(exposure.openBreaches, '{n} open breach', '{n} open breaches')
+      : null;
   const parts = [month, findings, breaches].filter((part): part is string => part !== null);
   if (parts.length === 0) return null;
   return <p className="meta">{parts.join(' · ')}</p>;
@@ -319,12 +326,12 @@ function ExposureMeta({ exposure }: { exposure: FrameExposure | null }) {
 function AreaList({ exposure }: { exposure: FrameExposure | null }) {
   if (!exposure || exposure.areas.length === 0) return null;
   return (
-    <ul className="areas" aria-label="What makes up your score">
+    <ul className="areas" aria-label={t('What makes up your score')}>
       {exposure.areas.map((area, index) => (
         <li key={`${area.key}-${index}`}>
           <div className="area-head">
             <span>{areaLabel(area.key)}</span>
-            <span className="area-score">{area.score === null ? 'Not checked yet' : clampScore(area.score)}</span>
+            <span className="area-score">{area.score === null ? t('Not checked yet') : clampScore(area.score)}</span>
           </div>
           {area.score !== null ? <AreaBar value={clampScore(area.score)} /> : null}
         </li>
@@ -347,16 +354,12 @@ function AreaBar({ value }: { value: number }) {
 }
 
 function planLabel(plan: NonNullable<PublicAccount['plan']>): string {
-  if (plan === 'plus') return 'Plus';
-  if (plan === 'household') return 'Household';
-  if (plan === 'business') return 'Business';
-  return 'Free';
+  if (plan === 'plus') return t('Plus');
+  if (plan === 'household') return t('Household');
+  if (plan === 'business') return t('Business');
+  return t('Free');
 }
 
-function countLabel(value: number | null, singular: string, plural: string): string | null {
-  if (typeof value !== 'number') return null;
-  return `${value} ${value === 1 ? singular : plural}`;
-}
 
 function SiteCard({
   host,
@@ -413,17 +416,17 @@ function SiteCard({
 
   return (
     <>
-      <h2 className="label">This site</h2>
+      <h2 className="label">{t('This site')}</h2>
       <section className="panel site-panel">
         {restricted ? (
           <>
-            <h3 className="host">Browser page</h3>
-            <p className="hint">Frame doesn’t change pages like this.</p>
+            <h3 className="host">{t('Browser page')}</h3>
+            <p className="hint">{t('Frame doesn’t change pages like this.')}</p>
           </>
         ) : !host ? (
           <>
-            <h3 className="host">No site</h3>
-            <p className="hint">Open a page to set fingerprinting for that site.</p>
+            <h3 className="host">{t('No site')}</h3>
+            <p className="hint">{t('Open a page to set fingerprinting for that site.')}</p>
           </>
         ) : (
           <>
@@ -432,12 +435,12 @@ function SiteCard({
                 <h3 className="host">{host}</h3>
                 <p className="hint">
                   {customized
-                    ? 'Fingerprinting is saved for this site only.'
-                    : 'Fingerprinting follows your default for every site.'}
+                    ? t('Fingerprinting is saved for this site only.')
+                    : t('Fingerprinting follows your default for every site.')}
                 </p>
               </div>
               <Switch
-                label={`Fingerprinting protection for ${host}`}
+                label={t('Fingerprinting protection for {host}', { host })}
                 checked={enabled}
                 disabled={disabled}
                 onChange={onChange}
@@ -445,15 +448,15 @@ function SiteCard({
             </div>
             <div className="site-row site-follow">
               <div>
-                <h4 className="host-sub">Clean tracking links</h4>
+                <h4 className="host-sub">{t('Clean tracking links')}</h4>
                 <p className="hint">
                   {trackersCustomized
-                    ? 'Saved for this site and its subdomains.'
-                    : 'Follows your default for this site and its subdomains.'}
+                    ? t('Saved for this site and its subdomains.')
+                    : t('Follows your default for this site and its subdomains.')}
                 </p>
               </div>
               <Switch
-                label={`Clean tracking links for ${host}`}
+                label={t('Clean tracking links for {host}', { host })}
                 checked={trackersOn}
                 disabled={trackerDisabled}
                 onChange={onTrackers}
@@ -464,7 +467,7 @@ function SiteCard({
               <div
                 className="confirm"
                 role="group"
-                aria-label={`Forget ${host}`}
+                aria-label={t('Forget {host}', { host })}
                 onKeyDown={(event) => {
                   if (event.key === 'Escape' && !clearing) {
                     event.stopPropagation();
@@ -473,9 +476,10 @@ function SiteCard({
                 }}
               >
                 <p className="hint">
-                  Clear cookies and site data for {host} on this device? You’ll be signed out of that site. This does
-                  not erase history, or data the site already kept on its servers. Storage on subdomains we can see is
-                  included. Chrome also clears cookies for the wider site. Open tabs drop session storage.
+                  {t(
+                    'Clear cookies and site data for {host} on this device? You’ll be signed out of that site. This does not erase history, or data the site already kept on its servers. Storage on subdomains we can see is included. Chrome also clears cookies for the wider site. Open tabs drop session storage.',
+                    { host },
+                  )}
                 </p>
                 <div className="site-actions">
                   <button
@@ -494,16 +498,16 @@ function SiteCard({
                       });
                     }}
                   >
-                    {clearing ? 'Clearing…' : 'Clear data'}
+                    {clearing ? t('Clearing…') : t('Clear data')}
                   </button>
                   <button type="button" className="text-link" onClick={cancel} disabled={clearing}>
-                    Cancel
+                    {t('Cancel')}
                   </button>
                 </div>
               </div>
             ) : (
               <button type="button" className="text-link site-forget" ref={forgetRef} onClick={() => setConfirming(true)}>
-                Forget this site
+                {t('Forget this site')}
               </button>
             )}
             <div role="status" aria-live="polite">
@@ -511,7 +515,7 @@ function SiteCard({
             </div>
             {notice?.canReload ? (
               <button type="button" className="text-link" onClick={() => void onReload()}>
-                Reload tab
+                {t('Reload tab')}
               </button>
             ) : null}
           </>
@@ -528,18 +532,19 @@ function SiteAccessCard({ browser: target, onGranted }: { browser: BrowserTarget
   return (
     <section className="panel access-panel" aria-labelledby="access-title">
       <h2 className="host-sub" id="access-title">
-        {safari ? 'Frame isn’t allowed on every website' : 'Frame can’t reach websites'}
+        {safari ? t('Frame isn’t allowed on every website') : t('Frame can’t reach websites')}
       </h2>
       {safari ? (
         <p className="hint">
-          Safari asks site by site. Global Privacy Control, clean tracking links, and fingerprinting protection only run
-          on websites you’ve allowed. To allow all of them: on Mac, Safari › Settings › Extensions › Frame; on iPhone and
-          iPad, Settings › Apps › Safari › Extensions › Frame. Frame doesn’t read or send page content.
+          {t(
+            'Safari asks site by site. Global Privacy Control, clean tracking links, and fingerprinting protection only run on websites you’ve allowed. To allow all of them: on Mac, Safari › Settings › Extensions › Frame; on iPhone and iPad, Settings › Apps › Safari › Extensions › Frame. Frame doesn’t read or send page content.',
+          )}
         </p>
       ) : (
         <p className="hint">
-          Website access for Frame is off in this browser, so Global Privacy Control, clean tracking links, referrer
-          trimming, and fingerprinting protection aren’t running. Frame doesn’t read or send page content.
+          {t(
+            'Website access for Frame is off in this browser, so Global Privacy Control, clean tracking links, referrer trimming, and fingerprinting protection aren’t running. Frame doesn’t read or send page content.',
+          )}
         </p>
       )}
       <button
@@ -556,13 +561,13 @@ function SiteAccessCard({ browser: target, onGranted }: { browser: BrowserTarget
             .catch(() => setFailed(true));
         }}
       >
-        {safari ? 'Allow on all websites' : 'Allow website access'}
+        {safari ? t('Allow on all websites') : t('Allow website access')}
       </button>
       {failed ? (
         <p className="error" role="alert">
           {safari
-            ? 'Access wasn’t granted. You can also allow Frame in Safari’s Extensions settings.'
-            : 'Access wasn’t granted. You can also turn it on from this add-on’s page in the browser’s add-on settings.'}
+            ? t('Access wasn’t granted. You can also allow Frame in Safari’s Extensions settings.')
+            : t('Access wasn’t granted. You can also turn it on from this add-on’s page in the browser’s add-on settings.')}
         </p>
       ) : null}
     </section>
@@ -582,49 +587,51 @@ function Exceptions({
   const trackers = Object.entries(state.settings.trackerHosts).sort(([a], [b]) => a.localeCompare(b));
   return (
     <>
-      <h2 className="label">Site exceptions</h2>
+      <h2 className="label">{t('Site exceptions')}</h2>
       {hosts.length === 0 ? (
         <p className="empty panel">
-          No fingerprint exceptions. Open Frame on a page that breaks, and turn fingerprinting off for that site only.
-          Subdomains are separate: www.example.com is not example.com.
+          {t(
+            'No fingerprint exceptions. Open Frame on a page that breaks, and turn fingerprinting off for that site only. Subdomains are separate: www.example.com is not example.com.',
+          )}
         </p>
       ) : (
         <ul className="hosts panel">
           {hosts.map(([host, enabled]) => (
             <li key={host}>
               <span>{host}</span>
-              <span className="pill">{enabled ? 'Fingerprinting on' : 'Fingerprinting off'}</span>
+              <span className="pill">{enabled ? t('Fingerprinting on') : t('Fingerprinting off')}</span>
               <button
                 type="button"
                 className="text-link"
-                aria-label={`Remove fingerprinting exception for ${host}`}
+                aria-label={t('Remove fingerprinting exception for {host}', { host })}
                 onClick={() => onClear(host)}
               >
-                Remove
+                {t('Remove')}
               </button>
             </li>
           ))}
         </ul>
       )}
-      <h2 className="label">Tracking link exceptions</h2>
+      <h2 className="label">{t('Tracking link exceptions')}</h2>
       {trackers.length === 0 ? (
         <p className="empty panel">
-          No tracking-link exceptions. Turn clean tracking links off for a site from the popup when a link breaks. That
-          choice also covers its subdomains.
+          {t(
+            'No tracking-link exceptions. Turn clean tracking links off for a site from the popup when a link breaks. That choice also covers its subdomains.',
+          )}
         </p>
       ) : (
         <ul className="hosts panel">
           {trackers.map(([host, enabled]) => (
             <li key={host}>
               <span>{host}</span>
-              <span className="pill">{enabled ? 'Cleaning on' : 'Cleaning off'}</span>
+              <span className="pill">{enabled ? t('Cleaning on') : t('Cleaning off')}</span>
               <button
                 type="button"
                 className="text-link"
-                aria-label={`Remove tracking-link exception for ${host}`}
+                aria-label={t('Remove tracking-link exception for {host}', { host })}
                 onClick={() => onClearTracker(host)}
               >
-                Remove
+                {t('Remove')}
               </button>
             </li>
           ))}
@@ -637,11 +644,11 @@ function Exceptions({
 function PermissionList({ browser: target, signInAvailable }: { browser: BrowserTarget; signInAvailable: boolean }) {
   return (
     <>
-      <h2 className="label">Permissions</h2>
+      <h2 className="label">{t('Permissions')}</h2>
       <dl className="permissions panel">
         {permissionsFor(target, signInAvailable).map((permission) => (
           <div key={permission.name}>
-            <dt>{permission.name}</dt>
+            <dt>{permissionLabel(permission.name)}</dt>
             <dd>{permission.why}</dd>
           </div>
         ))}
@@ -654,7 +661,7 @@ function formatMonth(month: string | null): string | null {
   if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return null;
   const year = Number(month.slice(0, 4));
   const monthIndex = Number(month.slice(5, 7)) - 1;
-  return new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
+  return new Intl.DateTimeFormat(locale(), { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(Date.UTC(year, monthIndex, 1)),
   );
 }

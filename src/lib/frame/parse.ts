@@ -1,6 +1,7 @@
 import { expiresAtFromSeconds } from '../auth';
 import { FrameApiError, messageForApiError } from './errors';
 import type { AuthorizeInput, ExposureArea, FrameAccount, FrameExposure, FramePlan, TokenSet } from './types';
+import { t } from '../i18n';
 
 export const FRAME_ORIGIN = 'https://frameprivacy.com';
 /** `aliases` is opt-in on the site, so the extension asks for it by name. */
@@ -31,7 +32,7 @@ export function buildAuthorizeUrl(input: AuthorizeInput): string {
 export function parseTokenResponse(body: unknown, clientId: string, now = Date.now()): TokenSet {
   const record = asRecord(body);
   if (!record || !isFrameToken(record.access_token) || !isFrameToken(record.refresh_token) || !clientId) {
-    throw new FrameApiError('Frame returned an unexpected token response.', null);
+    throw new FrameApiError(t('Frame returned an unexpected token response.'), null);
   }
   const expiresIn = typeof record.expires_in === 'number' && record.expires_in > 0 ? record.expires_in : DEFAULT_EXPIRES_IN;
   return {
@@ -47,7 +48,7 @@ export function parseTokenResponse(body: unknown, clientId: string, now = Date.n
 export function parseAccount(body: unknown): FrameAccount {
   const record = asRecord(body);
   if (typeof record?.id !== 'string' || typeof record.email !== 'string') {
-    throw new FrameApiError('Frame returned an unexpected account.', null);
+    throw new FrameApiError(t('Frame returned an unexpected account.'), null);
   }
   return {
     id: record.id,
@@ -59,7 +60,7 @@ export function parseAccount(body: unknown): FrameAccount {
 
 export function parseExposure(body: unknown): FrameExposure {
   const record = asRecord(body);
-  if (!record) throw new FrameApiError('Frame returned an unexpected exposure status.', null);
+  if (!record) throw new FrameApiError(t('Frame returned an unexpected exposure status.'), null);
   return {
     month: parseMonth(record.month),
     score: parseScore(record.score),

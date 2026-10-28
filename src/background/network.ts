@@ -4,10 +4,11 @@ import { GPC_RULE_ID, REFERRER_RULE_ID, canSetResponseHeaders, headerRules } fro
 import { browserTarget } from '../lib/platform';
 import type { Settings } from '../lib/settings';
 import { trackerRuleIds, trackerRules } from '../lib/trackers';
+import { t } from '../lib/i18n';
 
-const HEADER_ERROR = 'Could not update header rules.';
-const TRACKER_ERROR = 'Could not update tracking-link rules.';
-export const RESPONSE_HEADERS_UNAVAILABLE = 'Safari doesn’t let extensions change response headers, so Frame can’t set a Referrer-Policy here.';
+const HEADER_ERROR = t('Could not update header rules.');
+const TRACKER_ERROR = t('Could not update tracking-link rules.');
+export const RESPONSE_HEADERS_UNAVAILABLE = t('Safari doesn’t let extensions change response headers, so Frame can’t set a Referrer-Policy here.');
 
 export async function applyHeaderRules(settings: Settings): Promise<{
   sendGpc: ControlState;
@@ -22,7 +23,7 @@ export async function applyHeaderRules(settings: Settings): Promise<{
   if (!browser.declarativeNetRequest?.updateDynamicRules) {
     const unavailable: ControlState = {
       kind: 'unavailable',
-      reason: 'This browser cannot change requests from an extension.',
+      reason: t('This browser cannot change requests from an extension.'),
     };
     return {
       sendGpc: settings.sendGpc ? unavailable : appliedState(),

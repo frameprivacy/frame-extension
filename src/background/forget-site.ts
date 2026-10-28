@@ -8,6 +8,7 @@ import {
   type ForgetTarget,
   type PageTarget,
 } from '../lib/forget-site';
+import { t } from '../lib/i18n';
 
 const ORIGIN_DATA = {
   cache: true,
@@ -32,14 +33,14 @@ const FIREFOX_HOSTNAME_DATA = {
 
 export async function clearSite(url: string | undefined): Promise<string> {
   const page = pageTarget(url);
-  if (!page) throw new Error('Frame can’t clear data for this page.');
+  if (!page) throw new Error(t('Frame can’t clear data for this page.'));
   // Safari has no browsingData API. It clears cookies and the storage of open tabs instead.
   if (!browser.browsingData?.remove) return clearWithoutBrowsingData(page);
   const target = forgetTarget(page, await cookieDomains());
   await removeSiteData(target);
   await clearOpenTabs(target.hostnames, clearPageStorage);
-  const extra = target.truncated ? ' Some further subdomains were left.' : '';
-  return `Cleared cookies and site data for ${target.host}.${extra}`;
+  const extra = target.truncated ? ` ${t('Some further subdomains were left.')}` : '';
+  return `${t('Cleared cookies and site data for {host}.', { host: target.host })}${extra}`;
 }
 
 /**
@@ -50,10 +51,10 @@ export async function clearSite(url: string | undefined): Promise<string> {
  */
 async function clearWithoutBrowsingData(page: PageTarget): Promise<string> {
   if (!browser.cookies?.getAll || !browser.cookies.remove) {
-    throw new Error('This browser can’t clear site data from an extension.');
+    throw new Error(t('This browser can’t clear site data from an extension.'));
   }
   const cookies = await browser.cookies.getAll({}).catch(() => {
-    throw new Error('Couldn’t read this site’s cookies.');
+    throw new Error(t('Couldn’t read this site’s cookies.'));
   });
   const target = forgetTarget(
     page,
@@ -108,13 +109,13 @@ async function removeSiteData(target: ForgetTarget): Promise<void> {
     await browser.browsingData.remove({ origins }, ORIGIN_DATA);
   } catch (error) {
     const detail = error instanceof Error ? error.message : '';
-    throw new Error(detail ? `Couldn’t clear site data. ${detail}` : 'Couldn’t clear site data for this site.');
+    throw new Error(detail ? `${t('Couldn’t clear site data.')} ${detail}` : t('Couldn’t clear site data for this site.'));
   }
 }
 
 function nonempty(values: string[]): [string, ...string[]] {
   const [first, ...rest] = values;
-  if (!first) throw new Error('Frame can’t clear data for this page.');
+  if (!first) throw new Error(t('Frame can’t clear data for this page.'));
   return [first, ...rest];
 }
 

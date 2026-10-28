@@ -2,6 +2,7 @@
  * Privacy Score helpers shared by the popup and the options page.
  * The score itself always comes from the Frame API. Nothing here invents one.
  */
+import { t } from './i18n';
 
 export type ScoreBand = 'good' | 'fair' | 'needs-work' | 'at-risk';
 
@@ -14,10 +15,10 @@ export function scoreBand(score: number): ScoreBand {
 }
 
 export function bandLabel(band: ScoreBand): string {
-  if (band === 'good') return 'Good';
-  if (band === 'fair') return 'Fair';
-  if (band === 'needs-work') return 'Needs work';
-  return 'At risk';
+  if (band === 'good') return t('Good');
+  if (band === 'fair') return t('Fair');
+  if (band === 'needs-work') return t('Needs work');
+  return t('At risk');
 }
 
 /** Keeps a score from the API inside the ring. A value outside 0 to 100 is clamped, not hidden. */
@@ -27,16 +28,16 @@ export function clampScore(score: number): number {
 }
 
 const AREA_LABELS: Record<string, string> = {
-  breaches: 'Breaches',
-  brokers: 'Broker listings',
-  data_brokers: 'Broker listings',
-  network: 'Network',
-  footprint: 'Public footprint',
+  breaches: t('Breaches'),
+  brokers: t('Broker listings'),
+  data_brokers: t('Broker listings'),
+  network: t('Network'),
+  footprint: t('Public footprint'),
 };
 
 export function areaLabel(key: string): string {
   const known = AREA_LABELS[key];
   if (known) return known;
   const words = key.replaceAll('_', ' ').trim();
-  return words ? words.charAt(0).toUpperCase() + words.slice(1) : 'Other';
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : t('Other');
 }

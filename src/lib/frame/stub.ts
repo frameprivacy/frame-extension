@@ -3,6 +3,7 @@ import type { StoredSession } from '../session';
 import { FrameApiError } from './errors';
 import { buildAuthorizeUrl, FRAME_SCOPE } from './parse';
 import type { CreateAliasInput, ExchangeInput, FrameAccount, FrameClient, FrameExposure, TokenSet } from './types';
+import { t } from '../i18n';
 
 export const STUB_ACCOUNT: FrameAccount = {
   id: 'user_preview',
@@ -135,7 +136,7 @@ export class StubFrameClient implements FrameClient {
 
   private find(id: string): Alias {
     const alias = this.aliases.find((item) => item.id === id);
-    if (!alias) throw new FrameApiError('That alias no longer exists.', 404, 'NOT_FOUND');
+    if (!alias) throw new FrameApiError(t('That alias no longer exists.'), 404, 'NOT_FOUND');
     return alias;
   }
 }
