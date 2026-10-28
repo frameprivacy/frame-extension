@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { looksLikeEmailField } from '../lib/aliases';
 import type { AliasMessage, PageAlias, PageCreateResult, PageListResult, PageUseResult } from '../lib/messages';
+import { locale, t } from '../lib/i18n';
 
 // 24px is the smallest pointer target WCAG 2.2 (2.5.8) allows; smaller only when the field itself is shorter.
 const BADGE_SIZE = 24;
@@ -76,10 +77,10 @@ export function startAliasAutofill(): void {
   const badge = document.createElement('button');
   badge.type = 'button';
   badge.className = 'badge';
-  // The page may be in any language; this UI is English, so screen readers should read it as English.
-  badge.lang = 'en';
-  badge.title = 'Use a Frame email alias (Alt+Down)';
-  badge.setAttribute('aria-label', 'Use a Frame email alias');
+  // The page may be in any language; this UI follows the browser language, so screen readers read it in that one.
+  badge.lang = locale();
+  badge.title = t('Use a Frame email alias (Alt+Down)');
+  badge.setAttribute('aria-label', t('Use a Frame email alias'));
   badge.setAttribute('aria-keyshortcuts', 'Alt+ArrowDown');
   badge.setAttribute('aria-haspopup', 'menu');
   badge.setAttribute('aria-expanded', 'false');
@@ -89,8 +90,8 @@ export function startAliasAutofill(): void {
   const menu = document.createElement('div');
   menu.className = 'menu';
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', 'Frame email alias');
-  menu.lang = 'en';
+  menu.setAttribute('aria-label', t('Frame email alias'));
+  menu.lang = locale();
   menu.hidden = true;
   shadow.append(badge, menu);
 
@@ -256,31 +257,31 @@ export function startAliasAutofill(): void {
     menu.replaceChildren();
     const title = document.createElement('p');
     title.className = 'title';
-    title.textContent = 'Frame alias';
+    title.textContent = t('Frame alias');
     menu.append(title);
 
     if (view.loading) {
-      menu.append(status('Loading your aliases…'));
+      menu.append(status(t('Loading your aliases…')));
       return;
     }
     if (view.error) {
       menu.append(status(view.error, true));
-      if (view.reconnect) menu.append(status('Open Frame from the toolbar to sign in again.'));
+      if (view.reconnect) menu.append(status(t('Open Frame from the toolbar to sign in again.')));
       return;
     }
     const data = view.data;
     if (!data) return;
 
     const create = item(
-      'New alias for this site',
-      data.site ? `Remembers it was made on ${data.site}` : 'Forwards to your Frame email',
+      t('New alias for this site'),
+      data.site ? t('Remembers it was made on {site}', { site: data.site }) : t('Forwards to your Frame email'),
       true,
     );
     create.disabled = !data.canCreate;
     create.addEventListener('click', () => void createAndFill(create));
     menu.append(create);
     if (!data.canCreate) {
-      menu.append(status('You can’t make another alias right now. Manage aliases from Frame’s settings.'));
+      menu.append(status(t('You can’t make another alias right now. Manage aliases from Frame’s settings.')));
     }
 
     if (data.aliases.length > 0) {
@@ -300,7 +301,7 @@ export function startAliasAutofill(): void {
     if (busy) return;
     busy = true;
     button.disabled = true;
-    menu.append(status('Making a new alias…'));
+    menu.append(status(t('Making a new alias…')));
     const result = await ask<PageCreateResult>({ type: 'alias.page-create' });
     busy = false;
     if (!result.ok) return render({ error: result.error, reconnect: result.reconnect });
@@ -365,8 +366,8 @@ function status(text: string, error = false): HTMLParagraphElement {
 }
 
 function aliasDetail(alias: PageAlias): string {
-  const parts = [alias.label, alias.usedHere ? 'Used on this site' : null].filter(Boolean);
-  return parts.length > 0 ? parts.join(' · ') : 'Fill this alias';
+  const parts = [alias.label, alias.usedHere ? t('Used on this site') : null].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : t('Fill this alias');
 }
 
 function isEmailField(input: HTMLInputElement): boolean {
@@ -397,5 +398,5 @@ async function ask<T extends { ok: boolean }>(message: AliasMessage): Promise<T>
   } catch {
     /* Frame was updated or turned off while this page was open. */
   }
-  return { ok: false, error: 'Frame isn’t responding. Reload this page and try again.', code: null, reconnect: false } as unknown as T;
+  return { ok: false, error: t('Frame isn’t responding. Reload this page and try again.'), code: null, reconnect: false } as unknown as T;
 }

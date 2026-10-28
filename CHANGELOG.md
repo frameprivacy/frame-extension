@@ -8,6 +8,7 @@ All notable changes to the Frame extension. Versions match `package.json` and th
 - **Manage aliases** on the options page: make one with a label, copy, rename, pause, or delete, and see the site each alias was made on and every site it was used on. The popup makes an alias for the site you are on and lists the ones already used there.
 - *Offer aliases in email fields* turns the field button off. The button is only added to pages while you are signed in with aliases allowed.
 - Sign-in now asks for the `aliases` scope. If you signed in with an earlier version, choose *Allow aliases* to sign in again.
+- **French.** When the browser language is French, the popup, options page, alias menu, notices and errors are in Canadian French, and so is the store description (`_locales/fr`). Everything else stays in English. Counts use French plural rules and dates follow the language.
 
 No new permissions. The alias menu uses the existing website access and `scripting`.
 

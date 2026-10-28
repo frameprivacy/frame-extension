@@ -2,6 +2,7 @@ import { browser } from 'wxt/browser';
 import { aggregateControls, lockForLevel, UNAVAILABLE_REASON, type ControlState } from '../lib/control';
 import { privacyWrites, type PrivacyGroup, type PrivacyWrite } from '../lib/privacy-plan';
 import type { BooleanSettingId, Settings } from '../lib/settings';
+import { t } from '../lib/i18n';
 
 interface ChromeSettingApi {
   get(details: Record<string, never>): Promise<{ value?: unknown; levelOfControl?: string }>;
@@ -31,7 +32,7 @@ async function applyWrite(write: PrivacyWrite): Promise<ControlState> {
   try {
     current = await setting.get({});
   } catch {
-    return { kind: 'error', reason: 'Could not read this setting.' };
+    return { kind: 'error', reason: t('Could not read this setting.') };
   }
   const locked = lockForLevel(current.levelOfControl);
   if (locked) return locked;
@@ -39,7 +40,7 @@ async function applyWrite(write: PrivacyWrite): Promise<ControlState> {
     if (write.op === 'clear') await clearSetting(setting);
     else await setSetting(setting, write.value);
   } catch {
-    return { kind: 'error', reason: 'The browser rejected this change.' };
+    return { kind: 'error', reason: t('The browser rejected this change.') };
   }
   try {
     const after = await setting.get({});

@@ -10,6 +10,7 @@ import {
   withoutOriginFallback,
   type ScriptRegistration,
 } from '../lib/scripts';
+import { t } from '../lib/i18n';
 
 const KNOWN_IDS = [GPC_SCRIPT_ID, FINGERPRINT_SCRIPT_ID, ALIAS_SCRIPT_ID];
 
@@ -20,7 +21,7 @@ export async function applyPageScripts(
   if (!browser.scripting?.registerContentScripts || !browser.scripting.getRegisteredContentScripts) {
     const unavailable: ControlState = {
       kind: 'unavailable',
-      reason: 'This browser cannot run Frame’s page scripts.',
+      reason: t('This browser cannot run Frame’s page scripts.'),
     };
     return {
       sendGpc: settings.sendGpc ? unavailable : { kind: 'applied' },
@@ -35,7 +36,7 @@ export async function applyPageScripts(
     if (scripts.length > 0) await registerScripts(scripts);
     return { sendGpc: { kind: 'applied' }, fingerprintProtection: { kind: 'applied' } };
   } catch {
-    const reason = 'Could not install the page script. Reload Frame and try again.';
+    const reason = t('Could not install the page script. Reload Frame and try again.');
     return {
       sendGpc: settings.sendGpc ? { kind: 'error', reason } : { kind: 'applied' },
       fingerprintProtection: fingerprintWanted(settings) ? { kind: 'error', reason } : { kind: 'applied' },

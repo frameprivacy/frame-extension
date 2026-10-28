@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { bandLabel, clampScore, scoreBand } from '../lib/score';
+import { t } from '../lib/i18n';
 
 const R = 15.5;
 const C = 2 * Math.PI * R;
@@ -62,7 +63,9 @@ export function ScoreRing({ score, size = 96 }: { score: number | null; size?: n
   }, [target]);
 
   const label =
-    target === null ? 'Privacy Score not available yet' : `Privacy Score ${target} out of 100, ${bandLabel(scoreBand(target))}`;
+    target === null
+      ? t('Privacy Score not available yet')
+      : t('Privacy Score {score} out of 100, {band}', { score: target, band: bandLabel(scoreBand(target)) });
 
   return (
     <div className="ring" style={{ width: size, height: size }} role="img" aria-label={label}>
@@ -95,7 +98,7 @@ export function ScoreRing({ score, size = 96 }: { score: number | null; size?: n
             {shown}
           </span>
         )}
-        <span className="ring-of">of 100</span>
+        <span className="ring-of">{t('of 100')}</span>
       </div>
     </div>
   );

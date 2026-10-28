@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import type { Alias, AliasList } from '../lib/aliases';
 import type { AliasAccess, AliasMessage, AliasResult } from '../lib/messages';
+import { t } from '../lib/i18n';
 
 type ListData = AliasList & { site: string | null };
 type Failure = Extract<AliasResult<unknown>, { ok: false }>;
@@ -13,7 +14,7 @@ export async function callAlias<T>(message: AliasMessage): Promise<AliasResult<T
   } catch {
     /* falls through */
   }
-  return { ok: false, error: 'Frame did not respond.', code: null, reconnect: false };
+  return { ok: false, error: t('Frame did not respond.'), code: null, reconnect: false };
 }
 
 /** The alias list for the popup and options page, plus the changes they can make. */

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 export class FrameApiError extends Error {
   readonly status: number | null;
   readonly code: string | null;
@@ -17,9 +18,9 @@ export class FrameApiError extends Error {
   }
 }
 
-export const SIGN_IN_UNAVAILABLE = 'Sign-in isn’t available yet.';
-export const SESSION_ENDED = 'Your Frame session ended. Sign in again.';
-export const NETWORK_ERROR = 'Couldn’t reach frameprivacy.com.';
+export const SIGN_IN_UNAVAILABLE = t('Sign-in isn’t available yet.');
+export const SESSION_ENDED = t('Your Frame session ended. Sign in again.');
+export const NETWORK_ERROR = t('Couldn’t reach frameprivacy.com.');
 
 /**
  * Reuse of a rotated refresh token (invalid_grant) or a dead token (invalid_token,
@@ -34,17 +35,17 @@ export function endsSession(error: FrameApiError): boolean {
 export function messageForApiError(status: number, code: string | null, retryAfter: string | null): string {
   if (status === 503) return SIGN_IN_UNAVAILABLE;
   if (status === 429) return busyMessage(retryAfter);
-  if (code === 'invalid_grant') return 'That sign-in expired. Try again.';
+  if (code === 'invalid_grant') return t('That sign-in expired. Try again.');
   if (code === 'invalid_token') return SESSION_ENDED;
-  if (code === 'invalid_client') return 'This extension isn’t allowed to sign in yet.';
-  if (code === 'insufficient_scope') return 'Frame did not grant access to that.';
-  if (status === 403) return 'Frame refused this sign-in from this browser.';
+  if (code === 'invalid_client') return t('This extension isn’t allowed to sign in yet.');
+  if (code === 'insufficient_scope') return t('Frame did not grant access to that.');
+  if (status === 403) return t('Frame refused this sign-in from this browser.');
   if (status === 401) return SESSION_ENDED;
-  return 'Frame couldn’t complete that request.';
+  return t('Frame couldn’t complete that request.');
 }
 
 function busyMessage(retryAfter: string | null): string {
   const seconds = retryAfter && /^\d+$/.test(retryAfter.trim()) ? Number(retryAfter.trim()) : null;
-  if (seconds && seconds > 0 && seconds <= 120) return `Frame is busy. Try again in ${seconds} seconds.`;
-  return 'Frame is busy. Try again shortly.';
+  if (seconds && seconds > 0 && seconds <= 120) return t('Frame is busy. Try again in {n} seconds.', { n: seconds });
+  return t('Frame is busy. Try again shortly.');
 }

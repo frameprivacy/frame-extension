@@ -2,6 +2,7 @@ import type { ControlState } from './control';
 import { fingerprintMatchPatterns } from './scripts';
 import type { BrowserTarget } from './platform';
 import type { Settings } from './settings';
+import { t } from './i18n';
 
 /**
  * The website access in the manifest. Firefox lets people turn it off for an add-on.
@@ -10,9 +11,9 @@ import type { Settings } from './settings';
  */
 export const SITE_ORIGINS = ['http://*/*', 'https://*/*'] as const;
 
-export const SITE_ACCESS_REASON = 'Frame doesn’t have access to websites, so this isn’t working. Allow access above.';
+export const SITE_ACCESS_REASON = t('Frame doesn’t have access to websites, so this isn’t working. Allow access above.');
 export const SAFARI_SITE_ACCESS_REASON =
-  'Safari hasn’t allowed Frame on every website, so this only runs on sites you’ve allowed. Allow access above.';
+  t('Safari hasn’t allowed Frame on every website, so this only runs on sites you’ve allowed. Allow access above.');
 
 export function siteAccessReason(target: BrowserTarget): string {
   return target === 'safari' ? SAFARI_SITE_ACCESS_REASON : SITE_ACCESS_REASON;

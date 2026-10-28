@@ -3,6 +3,7 @@ import { browser } from 'wxt/browser';
 import type { ExtensionMessage, UiState } from '../lib/messages';
 import { optimisticState } from '../lib/optimistic';
 import { callExtension } from './api';
+import { t } from '../lib/i18n';
 
 export function useExtensionState() {
   const [state, setState] = useState<UiState | null>(null);
@@ -13,7 +14,7 @@ export function useExtensionState() {
       setState(await callExtension({ type: 'frame.get-state' }));
       setError(null);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Frame couldn’t load. Close this and open it again.');
+      setError(error instanceof Error ? error.message : t('Frame couldn’t load. Close this and open it again.'));
     }
   }, []);
 
@@ -35,7 +36,7 @@ export function useExtensionState() {
     } catch (error) {
       // Put the switches back to what the background really has.
       void refresh();
-      setError(error instanceof Error ? error.message : 'That didn’t go through. Try again.');
+      setError(error instanceof Error ? error.message : t('That didn’t go through. Try again.'));
       return false;
     }
   }

@@ -2,6 +2,7 @@ import { aliasErrorMessage, aliasSite, cleanLabel, needsReconnect, sortForSite, 
 import { endsSession, FrameApiError } from '../lib/frame/errors';
 import type { FrameClient } from '../lib/frame/types';
 import type { AliasMessage, AliasResult, PageAlias } from '../lib/messages';
+import { t } from '../lib/i18n';
 
 export interface AliasDeps {
   client: FrameClient;
@@ -21,7 +22,7 @@ interface Sender {
 
 const SIGNED_OUT: AliasResult<never> = {
   ok: false,
-  error: 'Sign in to Frame to use email aliases.',
+  error: t('Sign in to Frame to use email aliases.'),
   code: 'signed_out',
   reconnect: true,
 };
@@ -104,12 +105,12 @@ function ok<T>(data: T): AliasResult<T> {
 }
 
 function invalid(): AliasResult<never> {
-  return { ok: false, error: 'Frame couldn’t complete that request.', code: 'invalid_message', reconnect: false };
+  return { ok: false, error: t('Frame couldn’t complete that request.'), code: 'invalid_message', reconnect: false };
 }
 
 async function failure(error: unknown, deps: AliasDeps): Promise<AliasResult<never>> {
   if (!(error instanceof FrameApiError)) {
-    return { ok: false, error: 'Frame returned something unexpected. Try again.', code: null, reconnect: false };
+    return { ok: false, error: t('Frame returned something unexpected. Try again.'), code: null, reconnect: false };
   }
   if (!needsReconnect(error.status, error.code) && endsSession(error)) {
     await deps.enqueue(deps.sessionEnded);

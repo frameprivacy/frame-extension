@@ -37,11 +37,10 @@ const CHROMIUM_FIREFOX_PERMISSIONS = [
 ];
 const SAFARI_PERMISSIONS = ['storage', 'scripting', 'declarativeNetRequest', 'cookies'];
 
-const DESCRIPTION_CHROMIUM_FIREFOX =
-  'Privacy controls for this browser, and an optional Frame account on Chrome and Firefox. Does not make you anonymous.';
-const DESCRIPTION_SAFARI_WITH_ACCOUNT =
-  'Privacy controls for this browser, and an optional Frame account. Does not make you anonymous.';
-const DESCRIPTION_SAFARI_NO_ACCOUNT = 'Privacy controls for this browser. Does not make you anonymous.';
+// The listing description is localized through public/_locales (en and fr); manifest.test.ts checks both.
+const DESCRIPTION_CHROMIUM_FIREFOX = '__MSG_descriptionChromiumFirefox__';
+const DESCRIPTION_SAFARI_WITH_ACCOUNT = '__MSG_descriptionSafariWithAccount__';
+const DESCRIPTION_SAFARI_NO_ACCOUNT = '__MSG_descriptionSafariNoAccount__';
 
 /**
  * The manifest for one WXT browser target. Each browser only gets the keys it
@@ -54,6 +53,7 @@ export function buildManifest(browserName: string, safariSignInReady = SAFARI_SI
   const safari = target === 'safari';
   const manifest: UserManifest = {
     name: 'Frame',
+    default_locale: 'en',
     short_name: 'Frame',
     description: safari
       ? safariSignInReady

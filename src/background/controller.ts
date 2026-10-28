@@ -50,13 +50,14 @@ import { siteAccessControls } from '../lib/site-access';
 import { hasAliasScope } from '../lib/aliases';
 import { canReadReturnPage, clearPendingSignIn, startTabSignIn, watchTabSignIn } from './tab-sign-in';
 import { handleAliasMessage } from './aliases';
+import { t } from '../lib/i18n';
 
 const client = createFrameClient();
 const target = browserTarget(import.meta.env.BROWSER);
 const canSignIn = signInAvailable(target, SAFARI_SIGN_IN_READY);
-export const SAFARI_SIGN_IN_UNAVAILABLE = 'Sign-in isn’t available in Safari yet. Every protection works without an account.';
+export const SAFARI_SIGN_IN_UNAVAILABLE = t('Sign-in isn’t available in Safari yet. Every protection works without an account.');
 export const SAFARI_NEEDS_SITE_ACCESS =
-  'Allow Frame on frameprivacy.com so Safari lets it finish sign-in, then try again.';
+  t('Allow Frame on frameprivacy.com so Safari lets it finish sign-in, then try again.');
 const EXPOSURE_TTL_MS = 5 * 60 * 1000;
 
 let controls: UiState['controls'] = {};
@@ -85,7 +86,7 @@ export function startBackground(): void {
         },
       })
         .then(sendResponse)
-        .catch(() => sendResponse({ ok: false, error: 'Frame hit an unexpected error.', code: null, reconnect: false }));
+        .catch(() => sendResponse({ ok: false, error: t('Frame hit an unexpected error.'), code: null, reconnect: false }));
       return true;
     }
     if (!isExtensionMessage(message) || !fromExtensionPage(sender)) return false;
@@ -96,7 +97,7 @@ export function startBackground(): void {
       .then(sendResponse)
       .catch((error: unknown) => {
         sendResponse({
-          error: error instanceof Error ? error.message : 'Frame hit an unexpected error.',
+          error: error instanceof Error ? error.message : t('Frame hit an unexpected error.'),
         });
       });
     return true;
@@ -193,7 +194,7 @@ async function forgetActiveSite(): Promise<UiState> {
   const settings = await loadSettings();
   const tab = await browsingTab();
   if (!tab.url || !tab.host) {
-    siteNotice = { tone: 'error', text: 'Open a site to clear its data.', host: tab.host, canReload: false };
+    siteNotice = { tone: 'error', text: t('Open a site to clear its data.'), host: tab.host, canReload: false };
     return uiState(settings, await loadSession());
   }
   try {
@@ -201,7 +202,7 @@ async function forgetActiveSite(): Promise<UiState> {
   } catch (error) {
     siteNotice = {
       tone: 'error',
-      text: error instanceof Error ? error.message : 'Couldn’t clear site data for this site.',
+      text: error instanceof Error ? error.message : t('Couldn’t clear site data for this site.'),
       host: tab.host,
       canReload: false,
     };
@@ -213,14 +214,14 @@ async function reloadActiveTab(): Promise<UiState> {
   const settings = await loadSettings();
   const tab = await browsingTab();
   if (tab.id === null) {
-    siteNotice = { tone: 'error', text: 'That tab is gone. Reload it yourself.', host: tab.host, canReload: false };
+    siteNotice = { tone: 'error', text: t('That tab is gone. Reload it yourself.'), host: tab.host, canReload: false };
     return uiState(settings, await loadSession());
   }
   try {
     await browser.tabs.reload(tab.id);
-    siteNotice = { tone: 'ok', text: 'Reloaded this tab.', host: tab.host, canReload: false };
+    siteNotice = { tone: 'ok', text: t('Reloaded this tab.'), host: tab.host, canReload: false };
   } catch {
-    siteNotice = { tone: 'error', text: 'Couldn’t reload this tab.', host: tab.host, canReload: true };
+    siteNotice = { tone: 'error', text: t('Couldn’t reload this tab.'), host: tab.host, canReload: true };
   }
   return uiState(settings, await loadSession());
 }
@@ -264,7 +265,7 @@ async function signIn(): Promise<UiState> {
 async function liveSignIn(): Promise<string | null> {
   const redirectUri = browser.identity.getRedirectURL();
   const clientId = clientIdFromRedirect(redirectUri);
-  if (!clientId) return 'This browser returned an unexpected sign-in address.';
+  if (!clientId) return t('This browser returned an unexpected sign-in address.');
   const verifier = createVerifier();
   const state = randomState();
   const challenge = await codeChallenge(verifier);
@@ -281,9 +282,9 @@ async function liveSignIn(): Promise<string | null> {
       interactive: true,
     });
   } catch {
-    return 'Sign-in was cancelled.';
+    return t('Sign-in was cancelled.');
   }
-  if (!returned) return 'Sign-in was cancelled.';
+  if (!returned) return t('Sign-in was cancelled.');
   return completeSignIn(returned, { state, verifier, redirectUri, clientId });
 }
 
@@ -309,7 +310,7 @@ async function tabSignIn(): Promise<string | null> {
     });
   } catch {
     await clearPendingSignIn();
-    return 'Frame could not open the sign-in page.';
+    return t('Frame could not open the sign-in page.');
   }
   return null;
 }
@@ -345,7 +346,7 @@ async function completeSignIn(
     // The exchange already connected this browser on the server. Nothing was saved here, so give the slot back.
     if (token) await revokeUnsaved(token);
     if (error instanceof FrameApiError) return error.message;
-    return 'Frame could not complete sign-in.';
+    return t('Frame could not complete sign-in.');
   }
 }
 

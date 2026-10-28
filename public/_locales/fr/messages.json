@@ -1,0 +1,11 @@
+{
+  "descriptionChromiumFirefox": {
+    "message": "Réglages de confidentialité pour ce navigateur, et un compte Frame facultatif dans Chrome et Firefox. Ne vous rend pas anonyme."
+  },
+  "descriptionSafariWithAccount": {
+    "message": "Réglages de confidentialité pour ce navigateur, et un compte Frame facultatif. Ne vous rend pas anonyme."
+  },
+  "descriptionSafariNoAccount": {
+    "message": "Réglages de confidentialité pour ce navigateur. Ne vous rend pas anonyme."
+  }
+}

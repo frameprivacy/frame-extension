@@ -28,8 +28,46 @@ describe('manifest per browser', () => {
   });
 
   it('mentions a Frame account on Safari only once sign-in is ready', () => {
-    expect(buildManifest('safari', false).description).not.toMatch(/account/);
-    expect(buildManifest('safari', true).description).toMatch(/Frame account/);
-    expect(buildManifest('chrome').description).toMatch(/Chrome and Firefox/);
+    expect(description('en', buildManifest('safari', false).description)).not.toMatch(/account/);
+    expect(description('en', buildManifest('safari', true).description)).toMatch(/Frame account/);
+    expect(description('en', buildManifest('chrome').description)).toMatch(/Chrome and Firefox/);
+    expect(description('fr', buildManifest('safari', false).description)).not.toMatch(/compte/);
+    expect(description('fr', buildManifest('safari', true).description)).toMatch(/compte Frame/);
+  });
+
+  it('localizes the listing in English and French, within the store length limit', () => {
+    const en = messages('en');
+    const fr = messages('fr');
+    expect(buildManifest('chrome').default_locale).toBe('en');
+    expect(Object.keys(fr).sort()).toEqual(Object.keys(en).sort());
+    for (const set of [en, fr]) {
+      for (const entry of Object.values(set)) {
+        expect(entry.message.length).toBeGreaterThan(0);
+        expect(entry.message.length).toBeLessThanOrEqual(132);
+        expect(entry.message).not.toMatch(/[\u2013\u2014]/);
+      }
+    }
   });
 });
+
+type Messages = Record<string, { message: string; description?: string }>;
+
+const LOCALES = import.meta.glob('/public/_locales/*/messages.json', { eager: true, import: 'default' }) as Record<
+  string,
+  Messages
+>;
+
+function messages(locale: 'en' | 'fr'): Messages {
+  const set = LOCALES[`/public/_locales/${locale}/messages.json`];
+  if (!set) throw new Error(`Missing _locales/${locale}`);
+  return set;
+}
+
+/** Resolves a __MSG_key__ reference the way the browser does. */
+function description(locale: 'en' | 'fr', value: string | undefined): string {
+  const key = /^__MSG_(\w+)__$/.exec(value ?? '')?.[1];
+  if (!key) throw new Error(`Description is not localized: ${value}`);
+  const entry = messages(locale)[key];
+  if (!entry) throw new Error(`Missing ${locale} message ${key}`);
+  return entry.message;
+}
