@@ -92,7 +92,7 @@ export function AliasPanel({ variant, access, host, signingIn, signInAvailable, 
         <div className="alias-head">
           {options ? (
             <p className="hint alias-intro">
-              Each alias forwards to {list?.destination || 'your Frame email'}. Use a different one for each site, so you
+              Each alias forwards to {list?.destination || 'your Frame account email'}. Use a different one for each site, so you
               can see who shares it, and turn it off when it gets spam.
               {list ? ` ${list.aliases.length} of ${list.max} used.` : ''}
             </p>
@@ -297,8 +297,8 @@ function AliasItem({
 
   const meta = [
     alias.createdOrigin ? `Made on ${alias.createdOrigin}` : 'Made on frameprivacy.com',
-    full ? `Forwarded ${alias.forwardedCount}` : null,
-    full && alias.createdAt ? shortDate(alias.createdAt) : null,
+    full ? `${alias.forwardedCount} ${alias.forwardedCount === 1 ? 'email' : 'emails'} forwarded` : null,
+    full && alias.createdAt ? `Since ${shortDate(alias.createdAt)}` : null,
   ].filter((part): part is string => Boolean(part));
 
   return (
@@ -432,7 +432,7 @@ function UsedOn({ alias, site }: { alias: Alias; site: string | null }) {
           <li key={usage.site}>
             <span className={usage.site === site ? 'alias-site is-here' : 'alias-site'}>{usage.site}</span>
             <span className="pill">
-              {usage.lastSeenAt ? `Last ${shortDate(usage.lastSeenAt)}` : ''}
+              {usage.lastSeenAt ? `Last seen ${shortDate(usage.lastSeenAt)}` : ''}
               {usage.timesSeen > 1 ? ` · ${usage.timesSeen} times` : ''}
             </span>
           </li>
