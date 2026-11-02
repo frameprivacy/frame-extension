@@ -24,6 +24,12 @@ body {
   color: var(--text);
 }
 
+/* Chrome's built-in stylesheet for extension pages sets its own font on body,
+   which wins over the inherited :root font, so Geist never loaded there. */
+body {
+  font-family: var(--font);
+}
+
 html:has(body.popup) {
   /* The popup header is sticky: keep a focused control from scrolling under it (WCAG 2.4.11). */
   scroll-padding-top: 64px;
