@@ -1,12 +1,13 @@
 # Privacy
 
-This page covers the Frame browser extension. The Frame website and service are covered by the [Frame privacy policy](https://frameprivacy.com/privacy).
+This page covers the Frame browser extension. The Frame website and service are covered by the [Frame privacy policy](https://frameprivacy.com/privacy-policy).
 
 ## Short version
 
 - The extension collects no analytics, telemetry, or browsing history, and it has no ads. Its Firefox manifest declares no data collection (`data_collection_permissions: none`).
 - All privacy switches work without an account. Without an account the extension makes no network requests of its own.
-- Page contents, the sites you visit, and cookie values are never sent to Frame.
+- Signing in is optional. It shows your Privacy Score in the popup and turns on email aliases.
+- Page contents, page addresses, the list of sites you visit, and cookie values are never sent to Frame. When you make or fill an alias on a site, that one site's hostname is saved with the alias (see below).
 
 ## What stays on this device
 
@@ -19,7 +20,7 @@ Signing out revokes the token on frameprivacy.com and deletes the stored session
 
 ## What is sent, and only when you sign in
 
-Signing in is optional. When you choose **Sign in**, the browser opens `https://frameprivacy.com/connect` with a PKCE code flow (`identity.launchWebAuthFlow`). Safari has no such API; once Safari sign-in is available, the Safari build opens the same page in a normal tab, asks Safari for access to frameprivacy.com so it can see that tab return, and closes it after sign-in. Sign-in is not offered in Safari yet. You type your password on frameprivacy.com, never into the extension. After that, the extension calls only these Frame endpoints, from its background script, without the website's cookies:
+Signing in is optional. When you choose **Sign in**, the browser opens `https://frameprivacy.com/connect` with a PKCE code flow (`identity.launchWebAuthFlow`). Safari has no such API, so the Safari build opens the same page in a normal tab, asks Safari for access to frameprivacy.com so it can see that tab return, and closes it after sign-in. The Safari build is not in the App Store yet. You type your password on frameprivacy.com, never into the extension. After that, the extension calls only these Frame endpoints, from its background script, without the website's cookies:
 
 | Endpoint | Why |
 | --- | --- |
@@ -52,4 +53,4 @@ Each permission and why it is needed is listed in the [README](README.md#permiss
 
 ## Contact
 
-Questions or a privacy concern: [frameprivacy@proton.me](mailto:frameprivacy@proton.me).
+Questions or a privacy concern: [support@frameprivacy.com](mailto:support@frameprivacy.com).

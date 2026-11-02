@@ -21,7 +21,7 @@
 
 The [Frame](https://frameprivacy.com) extension puts real browser privacy settings in one popup: WebRTC IP leak protection, clean tracking links, fingerprinting protection, Global Privacy Control, and a one-click way to forget a site. It is a Manifest V3 extension for Firefox, Chromium browsers (Chrome, Brave, Edge), and Safari on Mac, iPhone, and iPad.
 
-Everything works without an account. Signing in to a Frame account is optional and only adds your Privacy Score to the popup. The extension never asks for your Frame password, collects no analytics, and does not make you anonymous. It is not a VPN.
+Everything works without an account. Signing in to a Frame account is optional. It adds your Privacy Score to the popup and turns on email aliases, so you can make or fill a Frame alias in email fields. The extension never asks for your Frame password, collects no analytics, and does not make you anonymous. It is not a VPN.
 
 <p align="center">
   <img src="docs/assets/popup.png" alt="The Frame popup on example.com: Privacy Score ring, per-site switches, and protections" width="380">
@@ -143,7 +143,7 @@ Set these on the site before sign-in can succeed. Details and redirect URIs are 
 | --- | --- |
 | Chrome (`FRAME_CHROME_EXTENSION_IDS`) | `mhemokfamnabliomlhigbkclcfcplfln` |
 | Firefox client id | `86d25b817a984dadbf12ae6ae90c87df43543c41` |
-| Safari client id (not live yet) | `com.frameprivacy.safari.extension` |
+| Safari client id | `com.frameprivacy.safari.extension` |
 
 The Chrome id comes from the public key in `src/lib/manifest.ts`. The private key is not in this repo. A Chrome Web Store build that Google re-signs gets a different id; add that id too.
 
@@ -161,7 +161,7 @@ What Safari can and can't do with Frame:
 | Forget this site | Cookies, plus storage in the site's open tabs. Safari can't clear the cache or storage for closed tabs. |
 | Trim cross-site referrers | No. Safari doesn't let extensions change response headers. |
 | WebRTC, third-party cookies, and the other browser settings | No. Safari has no `privacy` API. Use Safari's *Prevent cross-site tracking* and *Hide IP address*. |
-| Frame account sign-in (Privacy Score, aliases) | Not yet. Safari has no `identity` API; the tab-based sign-in turns on once frameprivacy.com allows the Safari client ([docs/auth.md](docs/auth.md#safari)). |
+| Frame account sign-in (Privacy Score, aliases) | Yes, through a normal tab, because Safari has no `identity` API ([docs/auth.md](docs/auth.md#safari)). |
 
 Safari asks for website access site by site. Until Frame is allowed on every website, it only protects the sites you've allowed, and the popup says so.
 
@@ -196,4 +196,4 @@ Stack: [WXT](https://wxt.dev/) 0.21, TypeScript, React, Vitest. The popup and op
 - Firefox: [addons.mozilla.org/firefox/addon/frame-privacy](https://addons.mozilla.org/en-US/firefox/addon/frame-privacy/)
 - Website: [frameprivacy.com](https://frameprivacy.com) · [Privacy policy](https://frameprivacy.com/privacy) · [Help](https://frameprivacy.com/help) · [Contact](https://frameprivacy.com/contact)
 - Brand: [frameprivacy.com/brand](https://frameprivacy.com/brand)
-- Support: [frameprivacy@proton.me](mailto:frameprivacy@proton.me) or a [GitHub issue](https://github.com/frameprivacy/frame-extension/issues)
+- Support: [support@frameprivacy.com](mailto:support@frameprivacy.com) or a [GitHub issue](https://github.com/frameprivacy/frame-extension/issues)
