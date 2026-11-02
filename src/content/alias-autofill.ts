@@ -47,11 +47,9 @@ const STYLE = `
 .status.error { color: #f0d0d0; }
 `;
 
-/** The two halves of the Frame symbol, drawn inline so pages never load a file from the extension. */
-const SYMBOL_PATHS: [string, string][] = [
-  ['M41 30 H154 Q157 30 154 33 L126 61 Q123 64 118 64 H73 Q66 64 66 71 V126 Q66 133 59 133 H38 Q30 133 30 125 V41 Q30 30 41 30 Z', '#b7c4de'],
-  ['M159 170 H46 Q43 170 46 167 L74 139 Q77 136 82 136 H127 Q134 136 134 129 V74 Q134 67 141 67 H162 Q170 67 170 75 V159 Q170 170 159 170 Z', '#6c7d9e'],
-];
+/** The Frame symbol (an F cut out of a rounded tile), drawn inline so pages never load a file from the extension. */
+const SYMBOL_PATH =
+  'M23 0H77A23 23 0 0 1 100 23V23H29V77H44V60H100V77A23 23 0 0 1 77 100H23A23 23 0 0 1 0 77V23A23 23 0 0 1 23 0ZM44 37H100V47H44Z';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 let started = false;
@@ -330,15 +328,14 @@ export function startAliasAutofill(): void {
 
 function symbol(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 200 200');
+  // A little inset so the tile sits inside the badge's rounded border.
+  svg.setAttribute('viewBox', '-14 -14 128 128');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
-  for (const [d, fill] of SYMBOL_PATHS) {
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', d);
-    path.setAttribute('fill', fill);
-    svg.append(path);
-  }
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', SYMBOL_PATH);
+  path.setAttribute('fill', '#F2F1EE');
+  svg.append(path);
   return svg;
 }
 
