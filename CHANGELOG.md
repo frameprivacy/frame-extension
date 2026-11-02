@@ -2,6 +2,14 @@
 
 All notable changes to the Frame extension. Versions match `package.json` and the manifest.
 
+## 0.3.1 (2026-11-02)
+
+- **Geist font in Chrome.** The popup and options page now use Geist on Chrome, Brave and Edge. Chrome's own stylesheet for extension pages set a font on `body` that won over the page's font, so body text fell back to the system font.
+- **Docs.** The README and PRIVACY.md say that signing in also turns on email aliases, not only the Privacy Score. The support and privacy contact is now support@frameprivacy.com. Safari sign-in wording matches the build.
+- **Dependencies.** eslint 10, TypeScript 6.0, vitest 5, and GitHub Actions v7 in CI. Build tools only; nothing new ships in the extension.
+
+No new permissions and no change to what the extension stores or sends.
+
 ## 0.3.0 (2026-11-02)
 
 - **Email aliases.** Signed in, focus an email field and a small Frame button offers *New alias for this site* or one of your aliases, and fills it in. Picking an existing alias on a new site adds that site to its *Used on* list.
