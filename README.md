@@ -189,7 +189,7 @@ On a Mac (Xcode 15 or newer):
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `wxt prepare` and `tsc --noEmit` |
 
-Stack: [WXT](https://wxt.dev/) 0.21, TypeScript, React, Vitest. The popup and options page use Geist and the steel mark from the [Frame brand page](https://frameprivacy.com/brand).
+Stack: [WXT](https://wxt.dev/) 0.21, TypeScript, React, Vitest. The popup and options page use Geist and the Frame logo (Paper on black) from the [Frame brand page](https://frameprivacy.com/brand).
 
 ## Links
 

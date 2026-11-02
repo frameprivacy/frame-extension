@@ -85,12 +85,12 @@ button:disabled {
 
 .mark {
   display: block;
-  height: 28px;
+  height: 22px;
   width: auto;
 }
 
 .options-body .mark {
-  height: 32px;
+  height: 26px;
 }
 
 .display {

@@ -10,6 +10,8 @@ All notable changes to the Frame extension. Versions match `package.json` and th
 - Sign-in now asks for the `aliases` scope. If you signed in with an earlier version, choose *Allow aliases* to sign in again.
 - **French.** When the browser language is French, the popup, options page, alias menu, notices and errors are in Canadian French, and so is the store description (`_locales/fr`). Everything else stays in English. Counts use French plural rules and dates follow the language.
 
+- **New Frame logo.** The toolbar icon, the popup and options page header, and the email field button use the new monochrome Frame logo.
+
 No new permissions. The alias menu uses the existing website access and `scripting`.
 
 ### Safari

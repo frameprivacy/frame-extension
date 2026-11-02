@@ -35,7 +35,7 @@ When a feature uses a browser API, check it exists in Safari (MDN's compatibilit
 - **No new permissions without a reason.** Explain any new permission in the README permissions table, in `src/lib/catalog.ts`, and in the pull request.
 - **No tracking.** No analytics, telemetry, remote code, or third-party requests.
 - **Keep it accessible.** Every control works with the keyboard, has a visible focus ring, and has a label. Respect `prefers-reduced-motion`.
-- **Brand.** Black background, white text, the steel accent (`#8c99b4`, gradient `#e7eefc` to `#8c99b4`), Geist for UI and Instrument Serif for display type, as on [frameprivacy.com/brand](https://frameprivacy.com/brand).
+- **Brand.** Black background, white text, the steel accent for UI only (`#8c99b4`, gradient `#e7eefc` to `#8c99b4`), Geist for UI and Instrument Serif for display type. The logo is monochrome: Paper `#F2F1EE` on dark, Ink `#0A0A0A` on light, never steel or a gradient. Files and rules are on [frameprivacy.com/brand](https://frameprivacy.com/brand).
 
 ## Releasing a Firefox version
 

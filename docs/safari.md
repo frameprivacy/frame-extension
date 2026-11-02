@@ -79,7 +79,7 @@ Apple also offers the same packager in App Store Connect (upload a zip of `.outp
 3. Bundle ids: the apps are `com.frameprivacy.safari`. Set **both** extension targets to `com.frameprivacy.safari.extension` (the packager proposes `com.frameprivacy.safari.Extension`). The website's Safari `client_id` is this id, so keep them the same.
 4. Version: set *Marketing Version* to the `version` in `package.json` and bump *Current Project Version* (build number) on every upload.
 5. Deployment targets: iOS 16.4 or later; macOS can stay at the packager default (Safari enforces 16.4 itself).
-6. App icon: add the Frame mark to each app's `AppIcon` asset (export a 1024 px PNG from `public/symbol.svg`; the repo's PNG icons stop at 128 px). Replace the packager's placeholder text in each app's `Main.html`/view with a one-line description and how to turn Frame on.
+6. App icon: add the Frame mark to each app's `AppIcon` asset (use the 1024 px app icon from [frameprivacy.com/brand](https://frameprivacy.com/brand); the repo's PNG icons stop at 128 px). Replace the packager's placeholder text in each app's `Main.html`/view with a one-line description and how to turn Frame on.
 7. Product › Build for both schemes. Treat warnings as things to fix.
 
 ## Try it
