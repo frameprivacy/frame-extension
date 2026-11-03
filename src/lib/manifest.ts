@@ -1,6 +1,7 @@
 import type { UserManifest } from 'wxt';
 import { FIREFOX_ADDON_ID, SAFARI_SIGN_IN_READY } from './extension-ids';
 import { SAFARI_MIN_VERSION, browserTarget } from './platform';
+import { OPTIONAL_DATA_COLLECTION } from './data-consent';
 
 /**
  * Public key for a stable unpacked Chromium extension id.
@@ -79,9 +80,10 @@ export function buildManifest(browserName: string, safariSignInReady = SAFARI_SI
     manifest.browser_specific_settings = {
       gecko: {
         id: FIREFOX_ADDON_ID,
-        strict_min_version: '128.0',
-        // Not in WXT's types yet. Mozilla requires it for new listings.
-        ...({ data_collection_permissions: { required: ['none'] } } as object),
+        // 140 is the first Firefox with built-in data-collection consent, which sign-in relies on.
+        strict_min_version: '140.0',
+        // Not in WXT's types yet. Nothing is sent without an account; signing in asks for the optional categories.
+        ...({ data_collection_permissions: { required: ['none'], optional: [...OPTIONAL_DATA_COLLECTION] } } as object),
       },
     };
   }

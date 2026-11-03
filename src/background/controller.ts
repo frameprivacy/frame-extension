@@ -51,11 +51,13 @@ import { hasAliasScope } from '../lib/aliases';
 import { canReadReturnPage, clearPendingSignIn, startTabSignIn, watchTabSignIn } from './tab-sign-in';
 import { handleAliasMessage } from './aliases';
 import { t } from '../lib/i18n';
+import { hasDataConsent } from '../lib/data-consent';
 
 const client = createFrameClient();
 const target = browserTarget(import.meta.env.BROWSER);
 const canSignIn = signInAvailable(target, SAFARI_SIGN_IN_READY);
 export const SAFARI_SIGN_IN_UNAVAILABLE = t('Sign-in isn’t available in Safari yet. Every protection works without an account.');
+export const DATA_CONSENT_NEEDED = t('Sign-in needs your OK for Frame to send sign-in and alias data. Choose Sign in and allow it.');
 export const SAFARI_NEEDS_SITE_ACCESS =
   t('Allow Frame on frameprivacy.com so Safari lets it finish sign-in, then try again.');
 const EXPOSURE_TTL_MS = 5 * 60 * 1000;
@@ -240,6 +242,10 @@ async function signIn(): Promise<UiState> {
     authError = SAFARI_SIGN_IN_UNAVAILABLE;
     return enqueue(async () => uiState(await loadSettings(), await loadSession()));
   }
+  if (client.mode !== 'stub' && !(await hasDataConsent(target, browser.permissions))) {
+    authError = DATA_CONSENT_NEEDED;
+    return enqueue(async () => uiState(await loadSettings(), await loadSession()));
+  }
   signingIn = true;
   authError = null;
   try {
@@ -368,7 +374,17 @@ async function signOut(): Promise<UiState> {
 }
 
 async function applyCurrent(): Promise<void> {
+  await dropSessionWithoutConsent();
   await applyAll(await loadSettings());
+}
+
+/**
+ * Firefox: if the data-collection OK was never given (a session from before it existed) or was taken back in
+ * about:addons, forget the session on this device so nothing more is sent. Signing in asks again.
+ */
+async function dropSessionWithoutConsent(): Promise<void> {
+  if (client.mode === 'stub' || (await hasDataConsent(target, browser.permissions))) return;
+  if (await loadSession()) await clearSession();
 }
 
 async function applyAll(settings: Settings): Promise<void> {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { TOGGLES, permissionLabel, permissionsFor } from '../lib/catalog';
 import { signInReturnOrigin } from '../lib/auth';
+import { dataConsentRequest } from '../lib/data-consent';
 import { SAFARI_REDIRECT_URI } from '../lib/extension-ids';
 import type { BrowserTarget } from '../lib/platform';
 import { controlDisabled, controlNote } from '../lib/control';
@@ -27,6 +28,14 @@ export function ExtensionScreen({ variant }: { variant: 'popup' | 'options' }) {
         .request({ origins: [signInReturnOrigin(SAFARI_REDIRECT_URI)] })
         .catch(() => false)
         .then(() => send({ type: 'frame.sign-in' }));
+      return;
+    }
+    // Firefox asks before the signed-in features send anything (see PRIVACY.md). Declining keeps you signed out.
+    if (state?.browser === 'firefox' && browser.permissions?.request) {
+      void browser.permissions
+        .request(dataConsentRequest() as never)
+        .catch(() => false)
+        .then((granted) => (granted ? send({ type: 'frame.sign-in' }) : undefined));
       return;
     }
     void send({ type: 'frame.sign-in' });

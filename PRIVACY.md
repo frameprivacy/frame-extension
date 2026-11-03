@@ -1,10 +1,12 @@
 # Privacy
 
-This page covers the Frame browser extension. The Frame website and service are covered by the [Frame privacy policy](https://frameprivacy.com/privacy-policy).
+Effective November 3, 2026 · Frame Labs Inc. · [privacy@frameprivacy.com](mailto:privacy@frameprivacy.com)
+
+The Frame browser extension is made by Frame Labs Inc., a corporation incorporated in Alberta, Canada. This page covers the Frame browser extension. The Frame website and service are covered by the [Frame privacy policy](https://frameprivacy.com/privacy-policy).
 
 ## Short version
 
-- The extension collects no analytics, telemetry, or browsing history, and it has no ads. Its Firefox manifest declares no data collection (`data_collection_permissions: none`).
+- The extension collects no analytics, telemetry, or browsing history, and it has no ads. Its Firefox manifest declares no required data collection (`data_collection_permissions: required: none`). The signed-in features are declared as optional categories, authentication information and browsing activity, and Firefox asks you to allow them when you choose **Sign in**. If you decline, you stay signed out. If you later turn them off in `about:addons`, the extension forgets its session on that device and sends nothing more.
 - All privacy switches work without an account. Without an account the extension makes no network requests of its own.
 - Signing in is optional. It shows your Privacy Score in the popup and turns on email aliases.
 - Page contents, page addresses, the list of sites you visit, and cookie values are never sent to Frame. When you make or fill an alias on a site, that one site's hostname is saved with the alias (see below).
@@ -51,6 +53,14 @@ The Safari app is only a container for the extension. It collects nothing, makes
 
 Each permission and why it is needed is listed in the [README](README.md#permissions) and on the extension's options page.
 
+## Chrome Web Store
+
+The use of information received from this extension adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements. Frame uses the sign-in tokens and alias hostnames described above only to provide the account and alias features. It does not sell them or use them for advertising.
+
+## Changes
+
+When this page changes, the date at the top changes and the change is listed in the [changelog](CHANGELOG.md).
+
 ## Contact
 
-Questions or a privacy concern: [support@frameprivacy.com](mailto:support@frameprivacy.com).
+Privacy questions or a concern: [privacy@frameprivacy.com](mailto:privacy@frameprivacy.com). Other help: [support@frameprivacy.com](mailto:support@frameprivacy.com).

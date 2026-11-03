@@ -31,7 +31,7 @@ Everything works without an account. Signing in to a Frame account is optional. 
 
 | Browser | How |
 | --- | --- |
-| Firefox 128 or newer | [Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/frame-privacy/) on Mozilla Add-ons. |
+| Firefox 140 or newer | [Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/frame-privacy/) on Mozilla Add-ons. |
 | Chrome, Brave, Edge | Not in the Chrome Web Store yet. You can build it and [load it unpacked](#load-unpacked). |
 | Safari 16.4 or newer (Mac, iPhone, iPad) | Not in the App Store yet. Build it on a Mac with Xcode, see [Safari](#safari). |
 

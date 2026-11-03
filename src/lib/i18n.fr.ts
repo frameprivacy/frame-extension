@@ -195,6 +195,8 @@ export const FR: Readonly<Record<string, string>> = {
   'This browser returned an unexpected sign-in address.':
     'Ce navigateur a renvoyé une adresse de connexion inattendue.',
   'Sign-in was cancelled.': 'La connexion a été annulée.',
+  'Sign-in needs your OK for Frame to send sign-in and alias data. Choose Sign in and allow it.':
+    'La connexion requiert votre accord pour que Frame envoie les données de connexion et d’alias. Choisissez Se connecter et autorisez-le.',
   'Frame could not open the sign-in page.': 'Frame n’a pas pu ouvrir la page de connexion.',
   'Frame could not complete sign-in.': 'Frame n’a pas pu terminer la connexion.',
   'This browser cannot run Frame’s page scripts.': 'Ce navigateur ne peut pas exécuter les scripts de page de Frame.',
