@@ -18,6 +18,15 @@ describe('manifest per browser', () => {
     expect(firefox.permissions).toEqual(expect.arrayContaining(['privacy', 'identity', 'browsingData']));
   });
 
+  it('declares no required data collection on Firefox, and the signed-in categories as optional', () => {
+    const gecko = buildManifest('firefox').browser_specific_settings?.gecko as Record<string, unknown>;
+    expect(gecko.strict_min_version).toBe('140.0');
+    expect(gecko.data_collection_permissions).toEqual({
+      required: ['none'],
+      optional: ['authenticationInfo', 'browsingActivity'],
+    });
+  });
+
   it('asks Safari only for APIs Safari has, with no Chrome key or gecko block', () => {
     const safari = buildManifest('safari');
     expect(safari.key).toBeUndefined();

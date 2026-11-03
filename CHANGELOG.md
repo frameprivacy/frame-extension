@@ -2,6 +2,11 @@
 
 All notable changes to the Frame extension. Versions match `package.json` and the manifest.
 
+## Unreleased
+
+- **Firefox data consent.** The Firefox manifest now lists what the signed-in features send as optional data-collection categories (authentication information and browsing activity), still with no required collection. Choosing *Sign in* on Firefox asks you to allow them first; declining keeps you signed out, and turning them off in `about:addons` signs the extension out on that device. Firefox 140 or newer is required, the first version with this consent.
+- **Privacy page.** PRIVACY.md has an effective date, names Frame Labs Inc., sends privacy questions to privacy@frameprivacy.com, and includes the Chrome Web Store Limited Use statement.
+
 ## 0.3.1 (2026-11-02)
 
 - **Geist font in Chrome.** The popup and options page now use Geist on Chrome, Brave and Edge. Chrome's own stylesheet for extension pages set a font on `body` that won over the page's font, so body text fell back to the system font.
